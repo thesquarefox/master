@@ -1,0 +1,849 @@
+\chapter{Konzept der Gänge und Räume}
+\label{K_GaengeRaeumeKonzept}
+
+In den beiden letzten Kapiteln wurde beschrieben, wie die Höhle für den Dungeon erstellt wird.
+Dieses Kapitel soll beschreiben, wie die Gänge und Räume als weitere Bestandteile des Dungeons konzipiert sind.
+
+%Bedeutung von Räumen und Gänge in Dungeons
+%!!!Bilder von Räumen und Gängen
+
+\section{Gänge als polygonale Schläuche}
+
+Gänge dienen dazu, Räume untereinander und mit der Höhle zu verbinden.
+Ein Gang soll durch einen polygonalen Schlauch (aufgebaut aus Dreiecken) mit definierbarem Querschnitt wiedergegeben werden.
+Dieser Schlauch soll in seinem Verlauf einer fest vorgegebenen Kurve $\vv{P(t)}$, mit $t \in [0,1]$, folgen.
+
+Zur Konstruktion des Gangs seien $n$ zweidimensionale Punkte $\vv{Q_0},...,\vv{Q_{n-1}}$ gegeben, die den Querschnitt des Gangs repräsentieren.
+%Diese Punkte seien nach ihrer korrekten Reihenfolge im Querschnittsverlauf angeordnet. %zirkulär aufsteigend im Uhrzeigersinn
+Diese Punkte seien um den Punkt $(0,0)$ im Uhrzeigersinn herum angeordnet.
+%- die Koordinaten jedes Punktes liegen in $[-1,1]\times[-1,1]$
+Die Gangkurve $\vv{P(t)}$ habe die erste Ableitung $\vv{P'(t)}$.
+Für eine gleichmäßige Struktur des Gangs und eine gute Kontrolle über die Anzahl erzeugter Dreiecke
+ist es sinnvoll, den Abstand zwischen zwei aufeinanderfolgenden Gangsegmenten gleich groß zu gestalten.
+Dieser Abstand sei $w$.  
+% gleichmäßige Unterteilung für Kollisionsabfragen sinnvoll, für Detailobjekte, evtl. für Beleuchtung(?)
+
+\ \\
+Algorithmus \ref{A_Gang} beschreibt die Konstruktion des Gangs.
+Für ein aktuelles $t$ wird zunächst das lokale Koordinatensystem bestimmt, ähnlich dem Frenetschen Koordinatensystem.
+Der Unterschied ist die Einbeziehung des Höhenvektors $(0,1,0)$, der die Richtung "`Oben"' für den Gang definiert.
+Das Frenetsche Koordinatensystem verwendet an dieser Stelle die zweite Ableitung der Kurve.
+%
+Nun wird ein Gangsegment aus 3D-Punkten erzeugt und mittels Dreiecken mit dem vorherigen Gangsegment verbunden. %, soweit dieses vorhanden ist
+Dabei werden immer zwei benachbarte Punkte des aktuellen Gangsegments mit den äquivalenten Punkten des letzten Gangsegments durch
+eine viereckige Fläche, bestehend aus zwei Dreiecken, verbunden (Zeilen 16-19 des Algorithmus \ref{A_Gang}).
+Danach erfolgt die Berechnung des nächsten $t$.
+Dieses soll so berechnet werden, dass der euklidische Abstand zwischen $\vv{P(t_{neu})}$ und $\vv{P(t_{alt})}$ genau $w$ beträgt.
+So wird der Gang stückweise aufgebaut.
+Der Algorithmus terminiert bei $t=1$.
+Die Bedingung des Abstands $w$ muss für das letzte Segment nicht unbedingt eingehalten werden,
+da dieser hier typischerweise kleiner ist als für die anderen Segmente.
+
+Von einer konstanten Anzahl von Gangsegmentpunkten und einer konstanten Laufzeit für das Finden des nächsten $t$ ausgehend,
+besitzt Algorithmus \ref{A_Gang} eine Laufzeitkomplexität von $\mathcal O(n)$, mit $n$ als Anzahl der erstellten Segmente.
+Diese Anzahl ist sowohl vom Kurvenverlauf als auch von $w$ abhängig.
+
+\ \\
+Potentiell problematisch ist das Überschreiten des Limits für die Anzahl von Vertices je Meshbuffer (siehe Abschnitt \ref{KK_Dreiecksnetze}).
+Um dieses Problem zu lösen, wird ein weiterer Test eingefügt.
+Nach der Vertex- und Dreiecksgenerierung wird geprüft, ob für das nächste Gangsegment noch genug Reserve vorhanden ist.
+Wenn nicht, wird ein neuer Meshbuffer angelegt und das aktuelle Gangsegment für den neuen Buffer ein zweites Mal erstellt.
+Danach wird wie gehabt mit dem Algorithmus fortgefahren.
+
+\ \\
+Zur Texturierung des Gangs wird für jeden Punkt des Querschnitts zusätzlich eine X-Texturkoordinate angegeben.
+Die Y-Texturkoordinate wird entlang des Gangs entsprechend des Abstands zwischen $\vv{P(t_{neu})}$ und $\vv{P(t_{alt})}$ weitergezählt.
+Dabei ist die Erhöhung der Y-Texturkoordinate pro Abstand $1$ angebbar.
+
+%- Texturkoordinaten für Gangquerschnitt bei jedem Punkt angebbar
+%  - so gute Kontrolle über Texturierung
+%  --> Textur-Koordinate X
+
+%	- Dimension des Querschnitts in Voxeln: dim*dim mit dim <= 2*minStrichradius
+%- erste Idee: man verwendet abwechselnd 0 und 1 für jeden Vertex als Texturkoordinaten
+%- sowohl in X-Richtung: um den Querschnitt, als auch in Y-Richtung: entlang des Querschnitts
+%- Problem: ungleichmäßige Abstände der Vertices sorgen für ungleichmäßige Texturierung
+%- Problem bei ungerader Anzahl der Vertices des Querschnitts (zwei 1en oder 0en nebeneinander)
+
+\begin{algorithm}
+\caption{Erstellung eines polygonalen Schlauchs entlang Kurve $P(t)$, $t \in [0,1]$}
+\label{A_Gang}
+\algorithmicrequire{Kurve $P(t)$, Querschnitt des Schlauchs, Gangsegmentabstand $w$}\\
+\algorithmicensure{Dreiecksnetz des polygonalen Schlauchs}
+\begin{algorithmic}[1]
+
+	\State $t \gets 0$
+	\State $\vv{Vorn} \gets \left\|\vv{P'(t)}\right\|$	\Comment{lokales Koordsys. berechnen}
+	\State $\vv{Links} \gets \left\|\vv{Vorn} \times (0,1,0)\right\|$ \Comment{$\left\|\vv{v}\right\|$ ... $\vv{v}$ normalisiert}
+	\State $\vv{Oben} \gets \vv{Links} \times \vv{Vorn}$
+	
+	\State
+	\ForAll{$\vv{Q_i} \in Querschnitt$}	\Comment{Vertices erzeugen}
+			\State $\textbf{create}\ Vertex\ V_{i}$
+			\State $\vv{V_i.Pos} \gets \vv{P(t)} - \vv{Q_i}.x \cdot \vv{Links} + \vv{Q_i}.y \cdot \vv{Oben}$ \Comment{Position berechnen}
+			\State $\vv{V_i.N} \gets \left\|\vv{P(t)}-\vv{V_{i}.Pos}\right\|$ \Comment{Normale berechnen}
+	\EndFor
+	
+	\State
+	\While{$t < 1$}
+		\State $t \gets t_{neu}\ mit\ D_{e}\left(\vv{P(t)},\vv{P(t_{neu})}\right)=w$ \Comment{nächstes t bestimmen}
+		
+		\State $\textbf{calculate}\ lokales\ Koordinatensystem$ \Comment{s.o.}
+		\State $\textbf{create}\ Vertices$				\Comment{s.o.}
+		
+		\For{$i = 1 \to n-1$}
+				\State $\textbf{create}\ ViereckAusZweiDreiecken(V_{i-1},V_{i},V^{letztes}_{i-1},V^{letztes}_{i})$	
+		\EndFor		
+		\State $\textbf{create}\ ViereckAusZweiDreiecken(V_{n-1},V_{0},V^{letztes}_{n-1},V^{letztes}_{0})$	
+	
+	\EndWhile
+\end{algorithmic}
+\end{algorithm}
+
+
+%================================================================================================
+
+\subsection{Verlauf des Gangs per kubischem Hermite-Spline}
+
+Für die Form des Gangs wäre ein geschwungener Verlauf wünschenswert.
+Als Vorgabe sollen die Endpunkte und die Richtung des Gangs in diesen Punkten angegeben werden.
+Hierfür eignet sich ein dreidimensionaler kubischer Hermite-Spline als Kurve $\vv{P(t)}$.
+Dieser stellt ein Polynom dritter Ordnung dar und ermöglicht somit eine gewundene und abgerundete Struktur.
+Er ist durch die Vorgaben der Positionen und ersten Ableitungen der Endpunkte konstruierbar.
+Die ersten Ableitungen beschreiben die Richtung der Kurve im jeweiligen Punkt.
+Abbildung \ref{B_HermiteSpline} zeigt einen solchen Hermite-Spline,
+Abbildung \ref{B_HermiteSplineGang} zeigt einen per Hermite-Spline konstruierten Gang.
+
+%!!!Warum nicht höherdimensional? weitere Kontrollpunkte nötig -> wie finden?
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=13cm]{Bilder/HermiteSpline}
+	\caption[Kubischer Hermite-Spline]{\emph{Kubischer Hermite-Spline}: mit Anfangs- und Endpunkt sowie den ersten Ableitungen in diesen Punkten (gestrichelt)}
+	\label{B_HermiteSpline}
+\end{figure}
+
+\ \\
+Die folgende Herleitung der Formeln für $\vv{P(t)}$ und $\vv{P'(t)}$ des kubischen Hermite-Splines ist im Wesentlichen an \cite[S.111 ff.]{salomon2006curves} angelehnt.
+Die Formel für ein Polynom dritter Ordnung lautet:
+\begin{equation}
+		\vv{P(t)} = \vv{a}\cdot t^3 + \vv{b}\cdot t^2 + \vv{c}\cdot t + \vv{d}
+\end{equation}
+
+\ \\
+Daraus ergibt sich als erste Ableitung:
+\begin{equation}
+		\vv{P'(t)} = 3\cdot\vv{a}\cdot t^2 + 2\cdot\vv{b}\cdot t + \vv{c}
+\end{equation}
+
+\ \\
+Gegeben seien die zwei Punkte $\vv{P_1} = \vv{P(0)}$, $\vv{P_2} = \vv{P(1)}$ und die ersten Ableitungen in diesen Punkten $\vv{P'_1} = \vv{P'(0)}$, $\vv{P'_2} = \vv{P'(1)}$.
+Es gilt somit:
+
+\begin{equation}
+ \begin{aligned}
+		\vv{P_1} &= \vv{a}\cdot 0^3 + \vv{b}\cdot 0^2 + \vv{c}\cdot 0 + \vv{d}  \\
+		\vv{P_2} &= \vv{a}\cdot 1^3 + \vv{b}\cdot 1^2 + \vv{c}\cdot 1 + \vv{d}  \\
+		\vv{P'_1} &= 3\cdot\vv{a}\cdot 0^2 + 2\cdot\vv{b}\cdot 0 + \vv{c} \\
+		\vv{P'_2} &= 3\cdot\vv{a}\cdot 1^2 + 2\cdot\vv{b}\cdot 1 + \vv{c} 
+	\end{aligned}
+\end{equation}
+
+\ \\
+Als Lösungen dieses Gleichungssystems ergeben sich:
+\begin{equation}
+ \begin{aligned}
+		\vv{a} &= 2\cdot \vv{P_1} - 2\cdot \vv{P_2} + \vv{P'_1} + \vv{P'_2} \\
+		\vv{b} &= -3\cdot \vv{P_1} + 3\cdot \vv{P_2} - 2\cdot \vv{P'_1} - \vv{P'_2} \\
+		\vv{c} &= \vv{P'_1} \\
+		\vv{d} &= \vv{P_1} 
+	\end{aligned}
+\end{equation}
+
+\ \\
+Man erhält eingesetzt und in Matrizenschreibweise umgeformt:
+
+\begin{equation}
+ \label{F_HermitePunkt}
+\vv{P(t)} = \left(t^3,t^2,t,1\right)
+  \begin{pmatrix}
+    2 & -2 & 1 & 1 \\
+    -3 & 3 & -2 & -1 \\
+    0 & 0 & 1 & 0 \\
+    1 & 0 & 0 & 0 \\
+  \end{pmatrix}
+    \begin{pmatrix}
+    \vv{P_1}\\
+    \vv{P_2} \\
+    \vv{P'_1} \\
+    \vv{P'_2} \\
+  \end{pmatrix}
+\end{equation}
+
+\begin{equation}
+\vv{P'(t)} = \left(t^3,t^2,t,1\right)
+  \begin{pmatrix}
+    0 & 0 & 0 & 0 \\
+    6 & -6 & 3 & 3 \\
+    -6 & 6 & -4 & -2 \\
+    0 & 0 & 1 & 0 \\
+  \end{pmatrix}
+    \begin{pmatrix}
+    \vv{P_1}\\
+    \vv{P_2} \\
+    \vv{P'_1} \\
+    \vv{P'_2} \\
+ \end{pmatrix}
+\end{equation}
+
+\ \\
+Damit lassen sich für jedes $t$ die zugehörige Position $\vv{P(t)}$ und die erste Ableitung $\vv{P'(t)}$ bestimmen.
+Bei der Konstruktion der Parameter werden im Programm die Positionen der Endpunkte $\vv{P_1}$, $\vv{P_2}$
+und die Richtungen des Gangs vom Endpunkt zum Ganginneren $\vv{P'_1}$, $-\vv{P'_2}$ angegeben.
+Der Betrag der ersten Ableitung wirkt als Gewichtung für die Richtung des Gangs.
+Je höher diese ist, desto höher ist auch der Einfluss der Richtungsvorgabe.
+
+\begin{figure}[htbp]
+  \centering  
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Gang_Innen}}
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Gang_Aussen}}  
+  \hfill
+	\caption[Gänge per kubischem Hermite-Spline]{\emph{Gänge per kubischem Hermite-Spline}: v.l.n.r. (a) Gang von innen, (b) Gang von außen. Verwendet wird eine Testtextur.}
+	\label{B_HermiteSplineGang}
+\end{figure}
+
+\subsubsection{Äquidistante Unterteilung}
+
+Algorithmus \ref{A_Gang} verwendet äquidistante Abstände $w$ zwischen aufeinanderfolgenden Punkten $\vv{P(t)}$.
+Es stellt sich die Frage, wie diese Unterteilung zu bestimmen ist.
+Eine äquidistante Unterteilung von $t$ wird i.A. keine solche Abstände liefern.
+Eine Approximation mittels der Bogenlänge $s$ als euklidischem Abstand wäre denkbar.
+Die Kurve müsste also in gleichgroße Stücke bezüglich ihrer Bogenlänge aufgeteilt werden.
+Hierfür ist eine Reparametrisierung von $\vv{P(t)}$ nach $\vv{P(s)}$ nötig.
+Das Ablaufen der Kurve würde mittels gleichmäßiger Erhöhung des Parameters $s$ erfolgen.
+Für die Reparametrisierung muss die Funktion $t(s)$ bekannt sein.
+
+\ \\
+Die Bogenlänge einer Kurve $\vv{P(u)}$, mit $\vv{P'(u)}$ als erster Ableitung, zwischen den Punkten $\vv{P(a)}$ und $\vv{P(b)}$
+berechnet sich wie folgt:
+\begin{equation}
+		s(a,b) = \int\limits_{a}^b \sqrt{\vv{P'(u)}^2}\ du
+\end{equation}
+
+\ \\
+Verwendet man für $\vv{P(u)}$ ein Polynom dritter Ordnung, wie es beim kubischen Hermite-Spline der Fall ist, so erhält man für $\vv{P'(u)}$ eines zweiter Ordnung.
+Dieses wird durch die Quadrierung zu einem Polynom vierter Ordnung unter der Wurzel, mit $k_i$ als den entsprechenden Koeffizienten:
+\begin{equation}
+		s(a,b) = \int\limits_{a}^b \sqrt{k_1u^4 + k_2u^3 + k_3u^2 + k_4u + k_5}\ du
+\end{equation}
+
+\ \\
+Für $s(t)$ als Bogenlänge der Kurve zwischen $\vv{P(0)}$ und $\vv{P(t)}$ resultiert daraus:
+\begin{equation}
+		s(t) = \int\limits_{0}^t \sqrt{k_1u^4 + k_2u^3 + k_3u^2 + k_4u + k_5}\ du
+\end{equation}
+
+\ \\
+Nun ergibt sich folgendes Problem:
+Löst man die Formel für $s(t)$ und die Umkehrfunktion $t(s)$ (beispielsweise mit einem Computeralgebrasystem),
+dann erhält man Formeln, die mehrere Seiten lang und äußerst komplex sind.
+Dieser Ansatz ist somit i.A. für kubische Polynome nicht realisierbar.
+
+%- wichtig: äquidistante Unterteilung des Splines -> damit Gang äquidistant unterteilt
+%(->WARUM?): gleichmäßige Unterteilung bezüglich Parameter t in AUsgangsformel liefert i.A.
+%keine sinnvolle Unterteilung des Splines (!Beispiel zeigen).
+%äquidistante Unterteilung des Splines ermöglicht mehr Kontrolle über Qualität und Polygonanzahl
+%Auch möglich: an Stellen starker Änderung (Betrag 2. Ableitung sehr hoch -> starke Kurven vom Spline bzw. Gang) feinere Unterteilung
+%- Herleitung der Formel:
+%Integrate[Sqrt[a*u\^4 + b*u\^3 + c*u\^2 + d*u + e], u]
+%Bogenlänge konkret in Abhängigkeit von t:
+%s(t) == Integrate[Sqrt[a*u\^4 + b*u\^3 + c*u\^2 + d*u + e], {u, 0, t}]
+%-->
+%t(s)=
+%Solve [s == Integrate[Sqrt[a*u\^4 + b*u\^3 + c*u\^2 + d*u + e], {u, 0, t}], s] 
+\ \\
+Die Alternative, welche im Generatorprogramm Anwendung findet, ist die Verwendung einer numerischen Lösung.
+Genutzt wird das Bisektionsverfahren, welches u.a. in \cite[S.49-50]{B_NumAnalysis} beschrieben wird.
+Das Verfahren halbiert ein gegebenes Intervall fortlaufend und verwendet dabei in der nächsten Iteration
+jeweils die Hälfte weiter, in der die Lösung liegen muss.
+Dies wird so lange fortgeführt, bis die gewünschte Genauigkeit für die Lösung erreicht ist.
+In der Praxis erweist sich diese Methode als sehr schnell und robust.
+
+Gegeben sind $t_{akt}$, der gewünschte euklidischer Abstand $w_{ziel}$ zwischen $\vv{P(t_{akt})}$ und $\vv{P(t_{neu})}$ sowie die Genauigkeit $\epsilon$.
+Gesucht ist $t_{neu}$.
+
+Zuerst wird getestet, ob $D_e\left(\vv{P(t_{akt})},\vv{P(1)}\right)\leq w_{ziel}$ gilt.
+Wenn dem so ist, dann ist $t_{neu}=1$ das Rückgabeergebnis.
+%Dieser Wert kann dann nicht weiter verbessert werden.
+Der Rest des Verfahrens verläuft folgendermaßen: \\
+
+\begin{compactenum}
+ \item Starte mit Intervall $[m,n] = [t_{akt},1]$
+ 
+ \item Setze $t_{neu} =  m+\frac{(n-m)}{2}$
+ 
+ \item Berechne aktuellen Abstand $w_{akt} = D_e\left( \vv{P(t_{akt})},\vv{P(t_{neu})}\right)$
+ 
+ \item Teste, ob $w_{akt} \in [w_{ziel}-\epsilon,w_{ziel}+\epsilon]$\\
+       ja: Gewünschte Genauigkeit erreicht. Abbruch mit Ergebnis $t_{neu}$.\\           
+       nein: Fahre fort.
+         
+ \item Wenn $w_{akt} > w_{ziel}$, dann setze $n = t_{neu}$ (Wert zu groß $\rightarrow$ Weiterverwendung der unteren Intervallhälfte), \\
+ 			 sonst setze $m = t_{neu}$ (Wert zu klein $\rightarrow$ Weiterverwendung der oberen Intervallhälfte).
+ 
+ \item Gehe zu 2.
+
+\end{compactenum}
+
+\ \\
+%Zusätzlich mit Ergebnis $t_{neu}$ abgebrochen, wenn $n-m < \phi$ (mit $\phi$ als Abbruchtoleranz), um zu verhindern dass der richtige Wert von $t$ übersprungen wurde.
+Als Verbesserung ließe sich eine \emph{adaptive Unterteilung} verwenden.
+Grundidee ist eine feinere Unterteilung an den Stellen, an denen sich die Kurvenrichtung stark ändert,
+um diese Abschnitte exakter wiedergeben zu können.
+Diese Stellen sind durch Betrachtung der zweiten Ableitung der Kurve bestimmbar.
+Charakteristisch ist ein hoher Betrag der zweiten Ableitung und eine Richtung dieser, die sich stark von der Richtung der ersten Ableitung unterscheidet.
+
+%================================================================================================
+    
+\subsection{Adapter}
+\label{KK_Adapter}
+Der Querschnitt des Gangs hat i.A. eine andere Form als die Öffnungen von Räumen oder der Höhle,
+wodurch eine Anpassung der Geometrien notwendig ist.
+Die Geometrien der Öffnungen in Räumen und der Höhle seien als \emph{Andockstellen} bezeichnet.
+Diese Andockstellen bilden exakt die Form der Öffnung ab.
+An den Enden des Gangs muss der Querschnitt so angepasst werden, dass er zur Form der Andockstelle überblendet.
+Die dazu verwendete Geometrie sei \emph{Adapter} genannt.
+
+\ \\
+Das \emph{Gangsegment} in $\vv{P(0)}$ bzw. $\vv{P(1)}$ sei gegeben durch eine Folge von Vertices und ein lokales Koordinatensystem.
+Für die Vertices sind Positionen, Normalen und Texturkoordinaten bekannt.
+\\
+%
+Die \emph{Andockstelle} sei gegeben durch eine Folge von Vertices, einen Mittelpunkt $\vv{M_a}$ und eine normalisierte Normale $\vv{N_a}$.
+Die Vektoren $\vv{Links_a}$ und $\vv{Oben_a}$ des lokalen Koordinatensystems der Andockstelle werden berechnet.
+Die Normale der Andockstelle übernimmt dabei die Rolle von $\vv{Vorn}$.
+Für die Andockstellenvertices sind nur die Positionen, aber keine Texturkoordinaten oder Normalen bekannt.
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=11.5cm]{Bilder/Adapter}
+	\caption[Prinzip des Adapters]{\emph{Prinzip des Adapters}: Verbindung zwischen ersten bzw. letztem Gangsegment und einer Andockstellengeometrie.
+	 Triangulierung (blau) erfolgt über Zuordnung der Vertices (grün) per Winkelähnlichkeit.}
+	 \label{B_AdapterPrinzip}
+\end{figure}
+
+\noindent Das Prinzip der Adaptererstellung ist in Abbildung \ref{B_AdapterPrinzip} dargestellt.
+Die Triangulation zwischen Gangsegment und Andockstelle erfolgt auf Basis der Winkelähnlichkeit ihrer Vertices.
+Zur späteren Zuordnung der Vertices wird hierfür jedem Vertex ein Winkel $\alpha$ zugewiesen.
+Die Winkelmessung findet mit den auf die jeweilige Ebene\footnote{Gangsegmentebene:
+$\vv{P(0)}$ bzw. $\vv{P(1)}$ als Mittelpunkt und $\vv{P'(0)}$ bzw. $\vv{P'(1)}$ normalisiert als Normale. \\
+Andockstellenebene: $\vv{M_a}$ als Mittelpunkt und $\vv{N_a}$ als Normale.}
+projizierten Vektoren zwischen Vertex und Ebenenmittelpunkt statt.
+Der entsprechende Vektor $\vv{Links}$ steht für $0^\circ$, gemessen wird im Uhrzeigersinn.
+Die Winkel für die Punkte des Gangsegments werden wie in Formel \ref{F_WinkelGangsegment} berechnet.
+Für die Berechnung können die 2D-Koordinaten der Querschnittspunkte $\vv{Q_i}$ genutzt werden,
+aus denen die 3D-Punkte des Segments gebildet wurden.
+\begin{equation}
+ \begin{aligned}
+		\alpha = \text{atan2} \left(\vv{Q_{i}}.y, -\vv{Q_{i}}.x\right) \\
+	\end{aligned}
+	\label{F_WinkelGangsegment}
+\end{equation}
+
+\ \\
+Die Winkel für die Punkte der Andockstelle werden wie folgt berechnet, mit $\vv{V_i.Pos}$ als 3D-Koordinaten der Andockstellenvertices:
+\begin{equation}
+ \begin{aligned}
+		\alpha = \text{atan2} \left(  \left(\vv{V_i.Pos}-\vv{M_a}\right)\cdot \vv{Oben_a}, \left(\vv{V_i.Pos}-\vv{M_a}\right)\cdot \vv{Links_a} \right) \\
+	\end{aligned}
+\end{equation}
+
+\ \\
+Für die Korrektheit der nachfolgenden Algorithmen sei gefordert, dass der Gang sowie die Andockstelle so konstruiert sind,
+dass sowohl die Gangsegmentvertices als auch die Andockstellenvertices zirkulär aufsteigende Winkel besitzen.
+Weiterhin ist gefordert, dass der auf die jeweilige Ebene
+projizierte Kantenzug, der alle Vertices ihrer Reihenfolge nach miteinander verbindet,
+den Mittelpunkt der Ebene umschließt.\footnote{Dieser Kantenzug ist geschlossen, d.h. erster und letzter Vertex werden ebenfalls verbunden.}
+%dass der resultierende Winkelunterschied zwischen zwei aufeinanderfolgenden Vertices weniger als $180^\circ$ betragen soll.
+Zur einfacheren Berechnung werden die Vertices zunächst so umsortiert, dass der kleinste Index auch den kleinsten Winkel enthält.
+Dies wird über eine Indexverschiebung realisiert, d.h. alle Elemente werden um eine bestimmte Anzahl von Positionen verschoben.
+
+\ \\
+Der erste Ansatz verwendet nur die bestehenden Vertices zur Triangulation des Adapters.
+Zunächst werden die Normalen der Andockstellenvertices $V_{i}$ berechnet.
+Diese entsprechen dem normalisierten, auf die Andockstellenebene projizierten Vektor zwischen Mittelpunkt und Vertex:
+\begin{equation}
+ \begin{aligned}
+		\vv{V_i.N} =  \frac{\left(\vv{M_a} - \vv{V_i.Pos}\right)	- \left(\vv{N_a} \cdot \left(\vv{M_a} - \vv{V_i.Pos}\right)\right) \cdot \vv{N_a}}
+												 {\left| \left(\vv{M_a} - \vv{V_i.Pos}\right)	- \left(\vv{N_a} \cdot \left(\vv{M_a} - \vv{V_i.Pos}\right)\right) \cdot \vv{N_a} \right|}
+	\end{aligned}
+	\label{F_NormalenADS}
+\end{equation}
+
+\ \\
+Danach erfolgt die Berechnung der Texturkoordinaten.
+Für die Y-Texturkoordinate wäre ein Weiterzählen dieser Koordinate entsprechend des Abstands zum letzten Gangsegment denkbar.
+Problematisch ist die X-Texturkoordinate.
+Abbildung \ref{B_AdapterStuetzvertices} zeigt mögliche Probleme.
+Ein einfaches Übernehmen der X-Texturkoordinate per Winkelähnlichkeit (Fig. (a)) kann zu Verdrehungen der Textur führen.
+Interpoliert man die X-Texturkoordinaten (Fig. (b)), kann die Textur überdehnen.
+
+Die Lösung besteht in dem Einfügen zusätzlicher Stützvertices mit den entsprechenden Winkeln und X-Texturkoordinaten (Fig. (c)).
+Die Vertices zwischen den Stützvertices interpolieren diese Koordinaten.
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=15cm]{Bilder/Adapter_Stuetzvertices}
+	\caption[Notwendigkeit von Stützvertices für Andockstellen]{\emph{Notwendigkeit von Stützvertices für Andockstellen}:
+	betrachtet wird Gangsegment (schwarz) und Andockstelle (blau):	v.l.n.r. \\
+	(a) Zuordnung der Texturkoordinaten per Winkelähnlichkeit führt zu Verdrehung,	(b) per Interpolation zu Überdehnung \\
+	(c) durch Stützvertices können die Texturkoordinaten korrekt interpoliert werden}
+	\label{B_AdapterStuetzvertices}
+\end{figure}
+
+%\ \\
+\subsubsection{Finales Verfahren}
+Dies führt zu folgendem Verfahren: Erzeuge aus der Vertexmenge des Gangsegments und der Andockstelle die finalen Andockstellenvertices $V'_{i}$.
+Diese werden statt der ursprünglichen Vertices der Andockstelle für die Triangulation des Adapters verwendet.
+Zur Erzeugung der $V'_{i}$ wird über die komplette Vertexmenge (Gangsegment und Andockstelle) per aufsteigendem Winkel gelaufen
+und es werden daraus die Vertices mit entsprechenden Parametern generiert.
+
+\ \\
+Für die nachfolgenden Formeln werden folgende Notationen verwendet:
+\begin{tabbing}
+\hspace*{3.5cm}\=\kill
+$V_{av}$ \> bezeichnet den Vertex der Andockstelle mit nächstkleinerem \\ \>  Winkel bezüglich des Winkels des aktuellen Vertex.\\
+$V_{an}$ \> den mit nächstgrößerem Winkel.\\
+$V_{gv}$ \> bezeichnet den Vertex des Gangsegments mit nächstkleinerem \\ \> Winkel bezüglich des Winkels des aktuellen Vertex.\\
+$V_{gn}$ \> den mit nächstgrößerem Winkel.\\
+$TY_{Gangende}$ \> bezeichnet die Y-Texturkoordinate der Gangsegmentpunkte.\footnotemark \\
+$TY_{IncPro1}$  \> gibt die Erhöhung der Y-Texturkoordinate pro Abstand $1$ an. \\
+$\Delta_{\varangle}\left(\gamma_1,\gamma_2\right)$  \> bestimmt den resultierenden Winkelunterschied zwischen \\ \> zwei Winkeln $\gamma_1$ und $\gamma_2$.
+Dieser Winkelunterschied \\ \> wird als Winkel zwischen $0^\circ$ und $180^\circ$ angegeben. \\ \\
+$\vv{V'_i.Pos}$  \> gibt die Position des Vertex an. \\
+$\vv{V'_i.T}$  \> gibt die Texturkoordinaten des Vertex an. \\
+$V'_i.Markierung$  \> dient zur Markierung, ob es sich um einen Textur-Stützvertex \\ \>  handelt ($Markierung = wahr$). \\
+$V'_i.Korrespondenz$  \> gibt den winkelähnlichsten Vertex des Gangsegments an, \\ \> welches der späteren Triangulierung dient.
+\end{tabbing}
+\footnotetext{Diese ist für alle Punkte eines Gangsegments identisch.}
+Zur Berechnung der Y-Texturkoordinate $\vv{V'_i.T}.y$ wird entweder eine Addition oder Subtraktion verwendet, je nach Ende des Gangs.
+Sie berechnet sich über den Abstand des Andockstellenvertex zur Position auf dem Gangsegment mit identischem Winkel.
+
+Der Interpolationsfaktor $f$ sei im Folgenden stets so gewählt, dass die interpolierte Position den gleichen Winkel besitzt wie $V_{akt}$.        
+Faktor $f$ kann durch trigonometrische Betrachtungen bestimmt werden.
+Bei der Betrachtung der Vertices gibt es drei mögliche Fälle:
+
+\ \\
+\emph{Fall 1}: Der aktuelle Vertex $V_{akt}$ ist ein Gangsegmentvertex.
+Vorgehen: Erzeuge einen neuen Stützvertex mit gleicher X-Texturkoordinate und gleichem Winkel.
+
+\begin{equation}
+ \begin{aligned}
+		\vv{V'_i.Pos} &= (1-f) \cdot \vv{V_{av}.Pos} + f \cdot \vv{V_{an}.Pos} \\
+		\vv{V'_i.T}.x &=  \vv{V_{akt}.T}.x \\
+		\vv{V'_i.T}.y &= TY_{Gangende} \pm \left|\vv{V'_i.Pos} - \vv{V_{akt}.Pos}\right| \cdot TY_{IncPro1} \\
+		V'_i.Markierung &= wahr \\
+		V'_i.Korrespondenz &= V_{akt}
+	\end{aligned}
+\end{equation}
+
+\ \\
+\emph{Fall 2}: Der aktuelle Vertex $V_{akt}$ ist ein Andockstellenvertex.
+Vorgehen: Der Vertex wird weiterverwendet.
+
+\begin{equation}
+ \begin{aligned}
+		\vv{V'_i.Pos} &= \vv{V_{akt}.Pos} \\
+		\vv{temp} &= (1-f) \cdot \vv{V_{gv}.Pos} + f \cdot \vv{V_{gn}.Pos} \\
+		\vv{V'_i.T}.y &= TY_{Gangende} \pm \left|\vv{V'_i.Pos} - \vv{temp}\right| \cdot TY_{IncPro1} \\
+		V'_i.Markierung &= falsch \\
+		V'_i.Korrespondenz &= \begin{cases} 
+													%V_{gv} & falls\ \left| V_{akt}.\alpha - V_{gv}.\alpha\right| < \left| V_{akt}.\alpha - V_{gn}.\alpha\right| \\ 
+													V_{gv} & falls\ \Delta_{\varangle}\left( V_{akt}.\alpha , V_{gv}.\alpha\right) \leq \Delta_{\varangle}\left( V_{akt}.\alpha,V_{gn}.\alpha\right) \\ 
+													V_{gn} & sonst
+													\end{cases}
+	\end{aligned}
+\end{equation}
+
+\ \\
+\emph{Fall 3}: Der aktuelle Vertex ist Andockstellenvertex  $V_{akt}^a$ und Gangsegmentvertex $V_{akt}^g$ (Winkelgleichheit).
+Vorgehen: Der Andockstellenvertex übernimmt die X-Texturkoordinate des Gangsegmentvertex und wird als Stützvertex weiterverwendet.
+
+\begin{equation}
+ \begin{aligned}
+		\vv{V'_i.Pos} &= \vv{V_{akt}^a.Pos} \\
+		\vv{V'_i.T}.x &=  \vv{V_{akt}^g.T}.x \\
+		\vv{V'_i.T}.y &= TY_{Gangende} \pm \left|\vv{V'_i.Pos} - \vv{V_{akt}^g.Pos}\right| \cdot TY_{IncPro1} \\
+		V'_i.Markierung &= wahr \\
+		V'_i.Korrespondenz &= V_{akt}^g
+	\end{aligned}
+\end{equation}
+
+\ \\
+Nun erfolgt die Berechnung der X-Texturkoordinaten der Nicht-Stützvertices der Andockstelle.
+Dazu wird die Texturkoordinaten eines solchen Vertex $V'_k$ aus den beiden nächstliegenden Stützvertices $V'_m$ und $V'_n$ interpoliert.
+$V'_m$ sei dabei der Stützvertex mit nächstkleinerem Winkel und $V'_n$ der Stützvertex mit nächstgrößerem Winkel bezüglich des Winkel von $V'_k$.
+Die Winkel werden dabei im Uhrzeigersinn zirkulär betrachtet.
+Der Interpolationsfaktor bestimmt sich aus den Längenverhältnissen der auf die Andockstellenebene projizierten Kantenzüge, die zum einen 
+$V'_m$ mit $V'_k$, als auch $V'_m$ mit $V'_n$ verbinden.
+
+\begin{equation}
+ \begin{aligned}
+ 		\vv{V'_k.T}.x = (1-t) \cdot \vv{V'_m.T}.x + t \cdot \vv{V'_{n}.T}.x\\
+ 		mit\ t =  \frac{
+							  \sum\limits_{i=m+1}^{k} \left|
+								\left(\vv{V'_i.Pos}-\vv{V'_{i-1}.Pos}\right)
+							- \left(\vv{N_a} \cdot \left(\vv{V'_i.Pos}-\vv{V'_{i-1}.Pos}\right)\right) \cdot \vv{N_a}
+							\right| 
+							}{
+							\sum\limits_{i=m+1}^{n} \left|
+								\left(\vv{V'_i.Pos}-\vv{V'_{i-1}.Pos}\right)
+							- \left(\vv{N_a} \cdot \left(\vv{V'_i.Pos}-\vv{V'_{i-1}.Pos}\right)\right) \cdot \vv{N_a}
+							\right|
+							} \\
+		%\wedge \ m<k \wedge n>k	\\
+		%\wedge \ V_m.Markierung = wahr \wedge \neg\exists q: \left( V_q.Markierung = wahr \wedge q>m \wedge q \leq k \right) \\
+		%\wedge \ V_n.Markierung = wahr \wedge \neg\exists q: \left( V_q.Markierung = wahr \wedge q<n \wedge q > k \right) \\		
+	\end{aligned}
+\end{equation}
+
+\ \\
+Die Normalen der $V'_i$ werden äquivalent zu Formel \ref{F_NormalenADS} berechnet.
+Nach der Erzeugung dieser finalen Andockstellenvertices
+erfolgt die Generierung des Dreiecksnetzes des Adapters entsprechend Algorithmus \ref{A_Gangadapter}.
+Die Triangulation nutzt, wie schon im ursprünglichen Ansatz und in Abbildung \ref{B_AdapterPrinzip} aufgezeigt,
+die Winkelähnlichkeit der Vertices zur Zuordnung.
+Im Fall, dass der aktuelle Triangulationsschritt zwei Dreiecke generiert, wird die Diagonalachse so gewählt,
+dass sie die beiden Endpunkte mit dem kleineren Winkelunterschied verbindet.
+
+\ \\
+Das Gesamtverfahren hat eine Laufzeitkomplexität von $\mathcal O(n+m)$,
+mit $n$ als Anzahl der ursprünglichen Andockstellenvertices und $m$ als Anzahl der Gangsegmentvertices.
+Einige Beispiele für fertige Adapter sind in Abbildung \ref{B_AdapterShots} zu sehen.
+
+\begin{algorithm}
+\caption{Triangulierung eines Gangadapters}
+\label{A_Gangadapter}
+\algorithmicrequire{Andockstellenvertices $V'_0$ ... $V'_{n-1}$, korrespondierende Gangsegmentvertices}\\
+\algorithmicensure{Dreiecksnetz des Gangadapters}
+\begin{algorithmic}[1]
+	
+	\State $K \gets V'_{0}.Korrespondenz$
+
+	\For{$i = 1 \to n-1$}
+		\If{$V'_{i}.Korrespondenz = K$} \Comment {Korr. gleichbleibend: ein Dreieck einfügen}
+			 \State $\textbf{create}\ Dreieck(V'_i,V'_{i-1},K)$			 
+		\Else \Comment {Korr.-Wechsel: zwei Dreiecke einfügen}
+				\State $\beta_1 \gets \Delta_{\varangle}\left( V'_i.\alpha , K.\alpha \right) $ \Comment {Diagonalachse bestimmen}
+				\State $\beta_2 \gets \Delta_{\varangle}\left( V'_{i-1}.\alpha , V'_{i}.Korrespondenz.\alpha \right) $
+				\If{$\beta_1 < \beta_2$}
+					\State $\textbf{create}\ Dreieck(V'_i,K,V'_{i-1})$	
+					\State $\textbf{create}\ Dreieck(V'_i,K,V'_{i}.Korrespondenz)$
+				\Else
+					\State $\textbf{create}\ Dreieck(V'_{i-1},V'_{i}.Korrespondenz,V'_i)$
+					\State $\textbf{create}\ Dreieck(V'_{i-1},V'_{i}.Korrespondenz,K)$	
+				\EndIf
+				\State $K \gets V'_{i}.Korrespondenz$				
+		\EndIf
+	\EndFor
+	
+	\If{$V'_{0}.Korrespondenz = K$}	 \Comment {Abarbeitung des verbleibenden Vertex}
+			 \State $\textbf{create}\ Dreieck(V'_0,V'_{n-1},K)$			 
+		\Else
+				\State $\beta_1 \gets \Delta_{\varangle}\left( V'_0.\alpha , K.\alpha \right) $ \Comment {Diagonalachse bestimmen}
+				\State $\beta_2 \gets \Delta_{\varangle}\left( V'_{n-1}.\alpha , V'_{0}.Korrespondenz.\alpha \right) $
+				\If{$\beta_1 < \beta_2$}
+					\State $\textbf{create}\ Dreieck(V'_0,K,V'_{n-1})$	
+					\State $\textbf{create}\ Dreieck(V'_0,K,V'_{0}.Korrespondenz)$
+				\Else
+					\State $\textbf{create}\ Dreieck(V'_{n-1},V'_{0}.Korrespondenz,V'_0)$
+					\State $\textbf{create}\ Dreieck(V'_{n-1},V'_{0}.Korrespondenz,K)$	
+				\EndIf
+		\EndIf
+
+\end{algorithmic}
+\end{algorithm}
+
+\begin{figure}[htbp]
+  \centering  
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Adapter_SternVoll}}
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Adapter_SternGitter}}  
+  \hfill \\
+  
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Adapter_DreieckVoll}}
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Adapter_DreieckGitter}}  
+  \hfill \\
+  
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Adapter_DreieckInnen}}
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Adapter_ViereckGitter}}  
+  \hfill
+    
+	\caption[Adapter aus verschiedenen Andockstellen]{\emph{Adapter aus verschiedenen Andockstellen}: v.l.n.r. \& v.o.n.u.
+	(a)+(b) sternförmige Andockstelle, (c)+(d) Dreieck als Andockstelle,
+	(e) Blick in einen Gang mit einem Adapter aus einer dreieckigen Andockstelle,
+	(f) Viereck als Andockstelle}
+	\label{B_AdapterShots}
+\end{figure}
+
+%WICHTIG: Winkel der Punkte werden erst in Adapterroutine berechnet -> damit Ausrichtung korrekt
+%
+%- Verbinden Andockstelle mit Spline
+%
+%- Erklärung des Verfahrens:
+%  - Erstellung der Ebene
+%  - Sortierung aufsteigend nach Winkel
+%  - Zuordnung der Punkte nach Winkel
+%[!HERLEITUNG: Formel für Winkel: Splineende]
+%[!HERLEITUNG: Formel für Winkel: Andockstelle - siehe Hefter Do 22.09.2011
+%wichtig: Winkel vom immer Links-Vektor aus gesehen
+%	- links-Vektor liegt grundsätzlich in der XZ-Ebene und befindet sich in linker Richtung bzgl. der Normalen
+%	(dies trifft auf auch auf Splineende zu)
+%
+%-> Projektion Vektor auf Ebene per Hessescher Normalform, dann Berechnung des Winkels]
+% 
+%Eingehen auf erste Idee:
+%- ohne Einfügen zusätzlicher Punkte
+%- TexturkoordinateX wird interpoliert über Winkelverhältnis
+%- Problem: Sonderfälle (z.B. Viereck mit 1,0,1,0 TextureX
+%-> und um 45° gedrehte Andockstelle -> ergibt 0.5, 0.5, 0.5, 0.5 als TextureX -> keine sinnvolle Texturierung)
+%
+%Behebung des Problems:
+%- Einfügen zusätzlicher Stützpunkte an der ADS ohne Silhouette dieser zu verändern
+%- Stützpunkte werden an den entsprechenden Winkeln des Splineendes eingefügt
+%[!HERLEITUNG: Formel für Stützpunkt-Koordinaten]
+%- die Stützpunkte übernehmen die TextureX-Koordianten von den entsprechenden Punkten des Splineendes
+%
+%Berechnung der fehlenden TextureX-Koordinaten der anderen Punkte:
+%- Interpolation entsprechend der Länge auf dem Kurvenzug zwischen 2 Stützpunkten
+%-> TextureX wird gleichmäßig über den Kurvenzug verteilt
+%Verbesserung: Kurvenzug wird auf Adapterebene projeziert -> dort wird die Länge gemessen
+%
+%Berechnung der TextureY-Koordinaten durch Abstand Mittelpkt. ADS <-> Splineende
+%Verbesserung: Abstand Adapter-Vertex <-> (eventuell temporärer) Spline-Vertex wird zur Berechnung verwendet
+%[!SKIZZE: Warum Verbesserung notwendig: wenn eine Seite der ADS deutlich näher am Spline als andere Seite]
+%
+%Erstellung der Dreiecke:
+%- Zuordung der entsprechenden Vertices von ADS und Splineende per ähnlichem Winkel
+%[!SKIZZE, nähere Beschreibung des Verfahrens]
+
+\subsubsection{Materialüberblendungen}
+
+Gang und Adapter bilden separate Geometrien.
+Ein zweites Paar an Texturkoordinaten für den Adapter wäre zum Textur-Blending zwischen beiden am Adapter angeschlossenen Geometrien sinnvoll.
+Die \emph{Andockstellenseitigen-Vertices} erhalten als zweite Y-Texturkoordinate $1,0$ , die \emph{Gangsegmentseitigen-Vertices} $0,0$.
+Dadurch ist ein Textur-Blending per zunehmendem Alphawert in Y-Richtung möglich.
+
+Allerdings unterstützt das für den Geometrieexport verwendete Wavefront OBJ-Format, wie auch viele andere 3D-Mesh-Formate, nur ein Paar Texturkoordinaten pro Vertex.
+Deswegen müssen die zweiten Texturkoordinaten beim Reimport der Daten neu erzeugt werden.
+Hierfür ist es erforderlich, die Vertices in Andockstellenseitige"=Vertices und Gangsegmentseitige"=Vertices unterteilen zu können.
+
+Die Andockstellenseitigen-Vertices unterscheiden sich in ihrer bestehenden Y"=Texturkoordinate vom ersten und letzten Vertex des Gangs.
+Die Gangsegmentseitigen-Vertices des Adapters tun dies dagegen nicht, da sie exakte Kopien der ersten bzw. letzten Gangvertices darstellen.
+Somit ist eine exakte Zuordnung möglich.
+
+%================================================================================================
+\subsection{Objekte in Gängen}
+
+In Dungeons gibt es oft eine Vielzahl von Detailobjekten.
+Dies können verzierende Objekte wie z.B. Fackeln oder Statuen sein,
+aber auch interaktive Objekte wie Monster und Fallen.
+Gesucht ist eine Methode, Objekte entlang von Gängen zu platzieren.
+
+Für das Platzieren von Objekten wird die Gangkurve $\vv{P(t)}$ äquivalent zu Algorithmus \ref{A_Gang} abgelaufen,
+nur ohne die Generierung von Vertices und Dreiecken.
+Stattdessen werden die Objekte postiert.
+Als Abstand zwischen zwei Gangsegmenten $w$ wird exakt der gleiche Abstand wie bei der Ganggenerierung verwendet,
+um genau den gleichen Kurvenverlauf zu erhalten.
+In bestimmten, bei Bedarf zufälligen Intervallen werden nun die Objekte des gewünschten Typs platziert.
+Die Intervalle werden dabei in Vielfachen von Gangsegmenten gezählt.
+
+\ \\
+Gegeben sei ein Ausgangsobjekt mit einer 2D-Position bezüglich des Gangquerschnitts von $\vv{Q}$,
+einer Ausgangsrotation von $\left(\beta_x,\beta_y,\beta_z \right)$ als Eulerwinkel und einer Skalierung von $\vv{S}$.
+Gesucht sind die resultierende Skalierung, die Position und die Rotation in Eulerwinkeln eines jeden auf dem Ausgangsobjekt basierenden Objekts $O$ im Gang.
+
+Die Skalierung bleibt unverändert und entspricht somit $\vv{S}$.
+Bei der Platzierung entlang des Gangs berechnen sich die Position $\vv{O.Pos}$
+und die Rotation in Eulerwinkeln $\vv{O.Rot}$ wie in Formel \ref{F_DetailobjektPosRot} angegeben.
+$\varangle_M$ sei eine gegebene Umwandlungsfunktion für Rotationsmatrizen in Eulerwinkel $\left(\alpha_x,\alpha_y,\alpha_z\right)$, ihre Umkehrfunktion sei $\varangle_M^{-1}$.
+$R_{Kurve}$ sei die Rotationsmatrix, die einen Vektor $(0,0,1)$ nach $\vv{P'(t)}$ rotiere.
+
+\begin{equation}
+ \begin{aligned}
+  \label{F_DetailobjektPosRot}
+ 		\vv{O.Pos} &= \vv{P(t)} - \vv{Q}.x \cdot \vv{Links} + \vv{Q}.y \cdot \vv{Oben} \\
+ 		\vv{O.Rot} &= \varangle_M \left( R_{Kurve} \cdot R_{Objekt} \right) \\
+ 							 &= \varangle_M \left( R_{Kurve} \cdot \varangle_M^{-1} \left( \beta_x,\beta_y,\beta_z \right) \right) 								 
+	\end{aligned}
+\end{equation}
+
+\ \\
+Bei der Einbindung von Detailobjekten %werden als Meshes in die Szene eingebunden.
+ist die Verwendung von Token für die Repräsentation komplexerer Objekte, wie z.B. detailreiche animierte Meshes oder Partikelsysteme, sinnvoll.
+Die Token stellen sehr einfache Meshes mit wenigen Polygonen dar und dienen als Platzhalter.
+Nach dem Einladen in die jeweilige Anwendung kann das Token entsprechend ersetzt werden.
+Die Identifizierung des Tokens erfolgt über den Objektnamen und die Objekt-ID, die das Objekt im Szenegraphen besitzt (siehe Anhang \ref{KA_Export}).
+
+Die Vorteile der Token liegen sowohl in der schnelleren Darstellung im Generatorprogramm
+als auch in der Erzeugung eines geringeren Overheads beim Speichern der Szenendatei,
+da ein solches Token weniger Parameter erfordert als z.B. das entsprechende Partikelsystem.
+Im Dungeongenerator-Programm werden daher Detailobjekte grundsätzlich durch nichtanimierte Meshes repräsentiert,
+da sich diese optimal als Token eignen.
+Beispiele für Objekt-Token entlang von Gängen werden in Abbildung \ref{B_Token} dargestellt.
+
+
+%Beispiele für Token:
+%- statischer Mesh: Fackel
+%  Erweiterungen: Partikelsystem für Darstellung von Feuer
+%                 Lichtquelle
+%
+%- statischer Mesh: einfacher Mesh (z.B. Tetraeder) "`Monster"'
+%  Ersetzung: dynamischer Mesh eines Monsters (Möglichkeit für zufälliges Auswählen eines Monsters) 
+%- .3ds sehr gebräuchliches 3D-Format, von Irrlicht importierbar
+%- statischer 3D-Mesh: Standard-Fall für Detailobjekte
+
+\begin{figure}[htbp]
+  \centering  
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Token_Gang}}
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Token_Einzeln}}  
+  \hfill
+	\caption[Objekte in Gängen]{\emph{Objekte in Gängen}: v.l.n.r. (a) Objekt-Token entlang eines Gangs, (b) einzelnes Token in Nahansicht}
+	\label{B_Token}
+\end{figure}
+
+
+%================================================================================================
+%================================================================================================
+
+\section{Räume als Subszenen}
+
+Räume sollen die Integration eigener Umgebung erlauben und als fertig ausgestattete \emph{Sub\-szenen} in den Dungeon eingefügt werden können.
+Jede Subszene dient dabei als Bauvorlage für die im Dungeon platzierten Räume.
+
+Diese Subszenen sind vorgefertigte Irrlicht-Szenen im .irr-Dateiformat.
+Sie sind fertig gestaltet, inklusive verzierenden und interaktiven Objekten.
+Es können so beliebige Szenen eingebunden werden.
+Prinzipiell kann auch eine Gangkreuzung oder ein extern modellierter Höhlenabschnitt als Raum definiert und verwendet werden.
+
+Jeder Raum hat vier definierte \emph{Andockstellen} für den Anschluss von Gängen, in Richtung Nord, Ost, Süd und West.
+Weiterhin für gibt es für jede dieser Himmelsrichtungen zwei Geometrien:
+Die \emph{Verschlussgeometrie} wird verwendet, wenn kein Gang angedockt wird. Ein Beispiel ist eine geschlossene Wand.
+Die \emph{Andockgeometrie} wird verwendet, wenn ein Gang angedockt wird. Ein Beispiel hierfür ist ein Torbogen mit einer Falle am Boden.
+ 
+%  	- interaktive Objekte per ID's definierbar wie in \cite{T_BachelorHoenig}
+%  	- keine Kollision mit ID's von anderen Räumen, wenn im Szenegraph immer vom Knoten des Raums aus gesucht wird (Subknoten)
+%  - hierdurch Einbindung eigener Dungeonteile möglich
+%- in Räumen werden keine weiteren Objekte platziert
+
+\ \\
+Zur Generierung der Räume wird zuerst die Raumvorlage, also die Subszene, eingeladen und die vier Andockstellen werden ermittelt.
+Bei der konkreten Generierung des Dungeons werden Kopien der eingeladenen Subszenen erzeugt und mit gewünschter Transformation in den Szenegraphen eingefügt.
+Die Transformation wird ebenfalls auf die Andockstellen angewendet.
+Je nachdem in welchen Himmelsrichtungen Gänge angeschlossen werden, wird dort entweder die Verschlussgeometrie oder die Andockgeometrie entfernt.
+Diese Kopien stellen die finalen Räume dar.
+Ein Beispiel für einen Raum mit an die entsprechenden Andockstellen angeschlossenen Adaptern ist in Abbildung \ref{B_RaumAdapter} zu sehen.
+
+\subsection{Ermittlung der Andockstellen}
+
+Eine Andockstelle besteht, wie in Kapitel \ref{KK_Adapter} erläutert,
+aus einer Folge von Vertices $V_i$, einem Mittelpunkt $\vv{M_a}$ und der normalisierten Normale $\vv{N_a}$.  
+%- zusätzlich wird die Ausdehnung $H_a$ ermittelt, die angibt wie weit der wei
+Andockstellen werden aus Meshes mit einer genau definierten Randkurve generiert.
+Diese Meshes sind in der Subszene durch die Benennung "`Nord\_Andockstelle"', "`Ost\_Andockstelle"', "`Sued\_Andockstelle"' bzw. "`West\_Andockstelle"' definiert.
+
+Die Randkurve besteht aus Vertices, die durch Kanten verbunden sind, die nur zu einem einzigen Dreieck gehören, d.h. Randkanten sind.\footnote{Kanten
+gehören ansonsten i.d.R. zu genau zwei Dreiecken, die links und rechts der Kante liegen.}
+$\vv{M_a}$ sei definiert als der Nullpunkt des Meshes.
+Die Normale verlaufe in Richtung der Z-Achse des Meshes, wobei sowohl positive als auch negative Richtung erlaubt sind.
+Die finale Normalenrichtung wird so gewählt, dass die Normale von der Mitte der Subszene weg zeigt.
+  
+\ \\
+Für die Ermittlung der Andockstellenvertices sei der Mesh durch seine Vertexliste und Dreiecksliste gegeben, wie in Kapitel \ref{KK_Dreiecksnetze} erläutert.
+Zunächst wird die Adjazenzliste für alle Vertices aufgebaut.
+Diese gibt für jeden Vertex an, welche Vertices mit diesem über eine Kante verbunden sind.
+Für den Aufbau der Adjazenzliste wird die Dreiecksliste durchlaufen und es werden jeweils für alle drei Kanten eines Dreiecks die entsprechenden Einträge generiert.
+Falls ein Eintrag mehrfach vorkommt, weil eine Kante zu mehreren Dreiecken gehört, so wird dieser Eintrag als \emph{mehrfach} markiert.
+
+Nach dem Aufbau der Adjazenzliste wird ein Vertex $V_i$ bestimmt,
+der mindestens einen Eintrag besitzt, welcher nicht als mehrfach markiert ist.
+Dieser Vertex ist ein Andockstellenvertex, also wird er zur Vertexmenge der Andockstelle hinzugefügt.
+Nun wird ein adjazenter Vertex zu $V_i$ bestimmt, der zu diesem mit einer nicht-mehrfachen Kante verbunden ist und damit fortgefahren.
+So wird entlang der Vertices der Randkurve gehangelt, bis der Startvertex wieder erreicht ist.
+Um zu vermeiden, dass zwischen zwei Vertices hin- und hergesprungen wird, darf keine Kante mehrmals verwendet werden.
+Ergebnis ist die Folge der Andockstellenvertices.
+
+Diese Andockstellenvertices sind nun entweder gegen oder im Uhrzeigersinn angeordnet.
+Falls sie gegen den Uhrzeigersinn angeordnet sind, wird die Reihenfolge umgekehrt.
+Zum Schluss werden die Andockstellenvertices, der Mittelpunkt und die Normale mittels der Transformation,
+mit welcher der Andockstellenmesh in die Subszene eingebunden wurde, transformiert.
+Die Andockstellenmeshes werden nach Ermittlung der Andockstellen aus der Subszene gelöscht.
+
+\ \\
+Ausgehend von einem maximalen Knotengrad je Vertex von $g$, der Anzahl der Dreiecke des Andockstellenmeshs $m$
+und der Anzahl seiner Vertices $n$,
+liegt die Laufzeitkomplexität des implementierten Algorithmus in $\mathcal O(g^2\cdot m+n)$.
+Der Aufbau der Adjazenzliste liegt dabei in $\mathcal O(g^2\cdot m)$,
+wobei der Faktor $g^2$ aus der Prüfung auf mehrfache Einträge resultiert.
+Es wird trivial jeder neue Eintrag mit den vorhandenen verglichen.
+Hier ist Verbesserungspotential vorhanden.
+Die Ermittlung der Andockstellenvertices liegt in $\mathcal O(m+n)$
+und die Transformation der Andockstelle in $\mathcal O(n)$.
+
+Der Algorithmus ist im Gesamtkontext des Generierungsprogramms nicht sehr zeitintensiv,
+da er erstens relativ selten aufgerufen wird (nur beim erstmaligen Einlesen von Subszenen)
+und zweitens die Adaptermeshes i.d.R. vergleichsweise wenige Vertices und Dreiecke besitzen.
+
+%einer kleinen konstanten Anzahl von Nachbarvertices und anliegenden Dreiecken je Vertex,
+%hat der Aufbau der , mit $n$ als Anzahl der Vertices des Andockstellenmeshes.
+%Die 
+%und somit auch der Gesamtalgorithmus.
+
+%- bestimme alle Vertices auf Rand des Meshes:
+%  alle Vertices die zu Kante gehören, die nur ein Dreieck als Nachbarn hat
+%  - gehe über alle Dreiecke
+%  - bilde für jeden Vertex Adjazenzliste
+%  - markiere alle Vertices mit doppelten Einträgen in der Adjazenzliste für ungültig
+%   (da es hier mindenstens 2 Dreiecke mit dieser Kante gibt -> keine Randkante)
+%  - alle gültigen Vertices bilden Rand
+%- Randkantenzug bilden:
+%  - filtere aus Adjazenzliste der gültigen Vertices alle ungültigen heraus
+%  - nimm gültigen Vertex als Start
+%  - hangle durch adjazente Vertices bis wieder am Startvertex
+%- wiederhole Verfahren, bis alle Andockstellen ermittelt    
+
+%\subsection{Transformation der Andockstellen}
+%wie werden Andockstellen bei Raumplatzierung transformiert?
+
+\begin{figure}[htbp]
+  \centering  
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Raum_AdapterGitter}}
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Raum_AdapterVoll}}  
+  \hfill \\
+  
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Raum_GangVonRaum}}
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Raum_RaumVonGang}}  
+  \hfill \\
+  
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Raum}}
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Raum_GangVonRaum2}}  
+  \hfill
+    
+	\caption[Raum mit Adaptern]{\emph{Raum mit Adaptern}: v.l.n.r. \& v.o.n.u. (a) Drahtgitter des Adapters, (b) Adapter komplett,
+	(c) Gang aus Raumsicht, (d) Raum aus Gangsicht, (e) Raum von innen, (f) gleiche Andockstelle wie bei (a)-(d) um $180^\circ$ gedreht verwendet}
+	\label{B_RaumAdapter}
+\end{figure}

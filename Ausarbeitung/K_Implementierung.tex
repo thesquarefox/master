@@ -1,0 +1,88 @@
+\chapter{Programmstruktur}
+
+Abbildung \ref{B_UML} zeigt den prinzipiellen Programmaufbau per Klassendiagramm nach UML 2.4.1 \cite{W_UMLInfra}\cite{W_UMLSuper}.
+Abgebildet sind die wichtigsten Klassen mit ihren grundsätzlichen Beziehungen zueinander.
+Auf Angabe der Attribute und Operationen wurde aus Platzgründen verzichtet.
+Der Aufbau des Programms gliedert sich grundsätzlich in zwei Teile:
+zum einen die Klassen für die Ansteuerung, Eingabe und Ausgabe,
+zum anderen die Generatorklassen plus generierte Objekte.
+
+\emph{CEventReceiver} empfängt Inputs und leitet diese an die anderen Objekte weiter.
+\emph{CGUI} definiert die Anordnung der GUI-Elemente.
+\emph{COptionen} steuert die einzelnen Klassen an, zusätzlich werden hier sowohl Einstellung als auch Ergebnisse geladen und gespeichert.
+In dieser Klasse ist zugleich der Pipeline-Ablauf definiert.
+\emph{CSzene} stellt sowohl die GUI als auch die Dungeonszene dar.
+Hierzu sind Methoden vorhanden, um die Dungeonszene aus den einzelnen Teilen zusammenzusetzen.
+Die \emph{main}-Klasse enthält neben Initialisierungen eine Programmschleife zum Betrieb der Irrlicht-Engine.
+
+\emph{CFraktalGenerator} erstellt L-Systeme und deren Ableitungen, welche die Turtle-Grafik-Zeichenanweisungen darstellen.
+\emph{CVoxelRaum} verwaltet den Voxelraum, zeichnet die Turtle-Grafik-Zeichenanweisungen und führt Erosion sowie Filterung schwebender Fragmente durch.
+\emph{CDreiecksMesh} verwaltet die Höhlensubnetze, führt die Umwandlung Voxel zu Dreiecksnetz durch, berechnet Sichtbarkeitsinformationen 
+der Höhle und führt die Reduktion der Höhlensubnetze durch.
+\emph{CArchitekt} verwaltet Vorlagen für Räume, Detailobjekte sowie die Grundkonfiguration der Gänge
+und konstruiert aus einer gegebenen Voxelhöhle durch das Platzieren von Gängen und Räumen den Dungeon.
+Bei der Erstellung von Andockstellen an der Höhle wird auf Vertexkoordinaten-Berechnungsroutinen von CDreiecksMesh zurückgegriffen.
+Die Räume \emph{SDungeonRaum} tragen einen Verweis auf die zugrundeliegende Subzene \emph{CSubSzene}, welche die Geometrie des Raums enthält.
+Jeder Gang ist eine Instanz von \emph{CSpline}.
+Für deren Erstellung werden von CArchitekt aus Gangparameter,
+ermittelte Andockstellen sowie Informationen aus Detailobjektvorlagen \emph{SSplineDetailobjektVorlage} an CSpline übergeben.
+Hier erfolgt die Generierung der Ganggeometrie und Adaptergeometrien sowie die Platzierung der Detailobjekte als \emph{SSplineDetailobjekt}.
+Sichtbarkeitsinformationen der Gänge und Gangreduktionsstufen werden ebenfalls in CSpline berechnet.
+
+Es existieren zwei separate Zufallsgeneratoren vom Typ \emph{CZufallsGenerator}:
+einer ist für CDreiecksMesh zuständig und wird dort für das Verwackeln der Eckpunkte eingesetzt,
+der andere liefert Zufallswerte für die restlichen Klassen.
+
+
+%welche Verfahren wurden implementiert?
+%-> besonders wichtig, falls Alternativen genannt wurden, wie z.B. beim Zeichnen von Strichen im Voxerkaum
+%Bibliotheken
+%- Irrlicht
+%Coding-Konventionen:
+%- eigene
+%- Irrlicht: http://irrlicht.sourceforge.net/faq.html
+%UML, Pap
+%VoxelRaum:
+%- direkter Zugriff auf das Voxel-Array statt LeseVoxel() 
+%- MinVoxelRandOffset == 3:
+%-> keine Spezialfällen an Rändern
+%--> deutliche Beschleunigung (ca. Faktor 4-10, je nach Prozedur)
+%- Eigene Irrlichklassen erläutern
+%OBJ-Format erklären:
+%- Irrlicht-Exporter
+%- eigener Exporter
+%Wichtig: Beim Durchlauf durch Voxelraum: (bezieht sich auf Visual Studio 2010, vermutlich bei den meisten anderen Compiler gleiche Ablage im Speicher)
+%- Schleifen-Reihenfolge von aussen nach innen möglichst immer X,Y,Z -> effektiverer Speicherzugriff (nacheinander folgende Elemente stehen auch nacheinander im Speicher) -> merkbar schneller
+
+
+\begin{figure}[hbtp]
+  \centering   % trim: links unten rechts oben
+	\includegraphics[width=15cm,trim = 10mm 6mm 6mm 10mm,clip]{Bilder/UML-DunGen}
+	\caption[Programmaufbau - UML Klassendiagramm]{\emph{Programmaufbau - UML Klassendiagramm}:
+	Dargestellt ist der prinzipielle Aufbau des Dungeongenerator-Programms.
+	Auf die Darstellung von Klassen der Irrlicht-Engine wurde verzichtet.
+	Der Inputteil ist \emph{rot} markiert, die eigentlichen Generatoren \emph{blau} und der Outputteil \emph{grün}.
+	}
+	\label{B_UML}
+\end{figure}
+
+
+\section{Anmerkung zum Rendering}
+
+Die generierten Dreiecksnetze der Höhle sowie die der Gänge mit ihren Adaptern sind
+bezüglich der Positionen ihrer Vertices bereits korrekt zueinander ausgerichtet.
+Das bedeutet, dass sie untransformiert in den Szenegraphen eingebunden werden können.
+Beim Rendering per Shader entfallen somit die Transformationen zur Berechnung der resultierenden Vertexpositionen und Normalen.
+Es braucht nur die Projektionstransformation von 3D-Raumkoordinaten zu 2D-Bildschirmkoordinaten durchgeführt zu werden.
+Durch das Weglassen der übrigen Transformationen ist eine höhere Performanz erzielbar.
+
+%Höhlenmesh besitzt im allgemeinen viele Vertices und Dreiecke
+%-> Falls im Shader Vertex-Positionen oder Vertex-Normalen benutzt werden:
+%  - Mesh möglichst untransformiert einbinden oder vorher transformieren (wenn statische Transformation)
+%	-> keine Transformation im Shader nötig -> spart Berechnungsaufwand
+%- Für Beleuchtung:
+%  - im Normalfall reicht es aus die Lichtquelle zu transformieren, diese muss relativ zur Höhle korrekt positioniert und ausrichtet befinden
+%  
+%trifft auch für Gänge zu:
+%alle vom Generator prozedural generierten Objekte brauchen keine Transformationen, sondern sind relativ zueinander korrekt positioniert und ausgerichtet
+%

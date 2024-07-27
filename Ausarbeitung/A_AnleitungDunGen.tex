@@ -1,0 +1,385 @@
+\chapter{Bedienungsanleitung des Dungeongenerators}
+
+- Auflösung und Antialiasing per Startparameter für Dungeongenerator.exe festlegbar
+
+Startoptionen:
+- Auflösung des Dungeongeneratorfensters: Breite Höhe
+- Antialiasfaktor, der von der Grafikkarte gefordert wird, 0 .. aus
+\footnote{Antialiasing wird nicht auf alle Objekte der Szene angewendet, da die verwendeten Materialien dies teilweise nicht zulassen.}
+
+Syntax:
+"`Dungeongenerator.exe Breite Höhe Antialiasfaktor"'
+Vorlage: Datei "`DunGen.bat"' kann modifiziert werden
+
+%================================================================================================
+\subsubsection{Allgemeine Hinweise}
+
+Alle Zahlen werden mit Punkt statt Komma angegeben
+
+Objekt-Benennung: Symbole für Fraktale, Dateinamen etc.: nach Möglichkeit keine Sonderzeichen, da Daten als XML
+gespeichert werden
+
+Angabe von Dateinamen:
+- relative Pfade verwenden: in Dateiauswahl-Dialogfenster den absoluten Teil löschen, bevor OK geklickt wird
+- Groß/Kleinschreibung: in Dateiauswahl-Dialogfenster Schreibweise ändern, bevor OK geklickt wird
+
+%================================================================================================
+\subsubsection{Tastenbelegung}
+
+Für die Verwendung der folgenden Tastaturbefehle darf kein GUI-Fenster fokussiert sein.
+Fokussierte Fenster sind an der blauen Titelleiste erkennbar.
+Falls ein Tastendruck nicht funktionieren sollte, in die Szene klicken um die GUI zu defokussieren.
+
+F1 ... Höhlenmeshes: höhere Detailstufe
+F2 ... Höhlenmeshes: niedrigere Detailstufe
+F3 ... Gangmeshes: höhere Detailstufe
+F4 ... Gangmeshes: niedrigere Detailstufe
+
+F5 ... Kamera: Freiflugmodus
+hier Steuerung der Kamera mittels Pfeiltasten und Maus
+F6 ... Kamera: feste Position und Ausrichtung
+F7 ... Kamera: schnellere Geschwindigkeit für Freiflugmodus
+F7 ... Kamera: langsamere Geschwindigkeit für Freiflugmodus
+
+F9 ... Kamera: alle Werte auf Original
+F11 ... Kamera: Position und Ausrichtung merken
+F12 ... Kamera: Position und Ausrichtung wiederherstellen
+
+1 ... Drahtgittermodell für Höhlenmeshes an/aus
+2 ... Drahtgittermodell für Gangmeshes an/aus
+3 ... Drahtgittermodell für Adaptermeshes an/aus
+4 ... Ein-/Ausblenden von Detailobjekten in Gängen
+5 ... Ein-/Ausblenden von Räumen
+
+6 ... schalte definitiv blickdichte Gänge und zugehörige Adapter auf Drahtgittermodus, andere auf normale Anzeige
+7 ... schalte definitiv blickdichte Gänge und zugehörige Adapter auf normale Anzeige, andere auf Drahtgittermodus
+
+8 ... fertige Screenshot mit GUI an, im Verzeichnis des Programms unter "`Screenshot\_JJJJ-MM-DD\_HH-MM-SS.bmp"' zu finden
+9 ... fertige Screenshot ohne GUI an, gleiches Verzeichnis und gleiche Benennung wie oben
+
+0 ... Wechsle Höhlenmaterial: Innen-/Aussenansicht wird vertauscht
+
+
+%================================================================================================
+\subsubsection{Menü: Dateizugriff - Einstellungen}
+
+- laden und speichern der einzelnen einzelnen Einstellungen als .xml-Dateien
+- überall dort wo ein Häkchen gesetzt wird, diese Einstellungen werden geladen bzw. gespeichert
+- beim Laden werden nur die Einstellungen wirklich geladen, die auch in der .xml-Datei enthalten sind
+
+- die Datei "`Einstellungen\_Standard.xml"' wird automatisch beim Start des Programms geladen
+
+Fraktalparameter:
+- Untermenü "`FraktalEditor"'
+- alle Einstellungen aus denen sich ein Lindenmayer-System generieren lässt
+- Winkel, Startradius, Radiusfaktor, Radiusdekrementor, Startfolge, Ersetzungsregeln, Iterationsstufe
+- für ein gegebenes Fraktal reicht es also aus diese Einstellungen zu speichern bzw. zu laden
+
+Weitere FraktalEditor-Einstellungen
+- Untermenü "`FraktalEditor"'
+- alle übrigen Einstellungen dieses Untermenüs, wie z.B. die gewünschten Minimum und Maximumwerte und Anzahl der Nachkommastellen
+
+VoxelRaum:
+- Untermenü "`VoxelRaum"'
+- alle Einstellungen
+
+Gänge:
+- Untermenü "`Gänge"'
+- alle Einstellungen der linken Seite, also alles was nur die Gänge und nicht die Detailobjekte betrifft
+
+Detailobjekte:
+- Untermenü "`Gänge"'
+- alle Einstellungen der rechten Seite, also alles was nur die Detailobjekte betrifft
+
+Architekt:
+- Untermenü "`Architekt"'
+- alle Einstellungen der linken Seite, also alles was nur den Architekt und nicht die Subszenen betrifft
+
+Subszenen:
+- Untermenü "`Architekt"'
+- alle Einstellungen der rechten Seite, also alles was nur die Subszenen betrifft
+
+Erstellung:
+- Untermenü "`Erstellung"'
+- alle Einstellungen
+
+Weiteres:
+- Untermenü "`Weiteres"'
+- alle Einstellungen
+
+%================================================================================================
+\subsubsection{Menü: Dateizugriff - Ergebnisse}
+
+- laden und speichern der Ergebnisse
+
+Fraktal-Iterationen Zeichenanweisungen:
+- Speichern der generierten Turtlegrafik-Zeichenanweisungen (s. Anhang \ref{KA_Export})
+
+Dichtekarten:
+- speichern der generierten Dichtekarten
+- Format wird durch Dateiendung festgelegt: .jpg, .png, .tga, .bmp, .pcx, .ppm
+
+Voxelhöhle Dreiecksmesh:
+- speichert den Dreickesmesh der gesamten Höhle im .obj-Format
+%- jedes Subnetz wird in einem extra Meshbuffer abgelegt
+
+Dungeon:
+- speichert die Szene, Zusatzinformationen und Meshes des Dungeons
+(s. Anhang \ref{KA_Export})
+
+Test auf korrekten Export:
+- lädt .irr-Szene ein
+- wenn es sich um einen exportierten Dungeon handelt, so wird der Szenegraph neu traversiert
+  - so lassen sich Detailstufen und Drahtgitteransichten umschalten, Deatailobjekte und Räume ein- und ausblenden
+  - die Zusatzinformationen werden nicht eingelesen, so lassen sich blickdichte Gänge nicht markieren
+
+%================================================================================================
+\subsubsection{Menü: FraktalEditor}
+
+Parameter :
+- Wert ... konrekter aktueller Wert
+- Zufälliges Bestimmen:: Minimum, Maximum, Nachkommastellen werden beim Auswürfeln per Button "`Zufallsparameter"' verwendet
+%\footnote{!!!Erklärung Berechnungsprinzip. Es kann hierbei zu Rundungsfehlern kommen.
+%Beispiel für Visual Studio 2010: mit "`int x = 18467;"' ergibt "`(double)x * 0.01"' den Wert "`184.669998"'}
+% FIXED mit Service Pack 1!
+als Nachkommastellen sind auch negative Werte zulässig, diese reduzieren dann die Zahl der signifikanten Stellen vor dem Komma
+
+- Startstring: mit welchem Symbolen soll begonnen werden
+- Zufälliges Bestimmen über "`Zufälliger Startstring"'
+  - Erlaubte Symbole werden verwendet, je öfter ein Symbol erhalten ist, desto wahrscheinlicher ist sein Vorkommen
+  - Länge des Strings liegt zwischen Minimum und Maximum\footnote{Ausser bei Folgen von nur '\$' oder nur '\|'}
+  - sinnfreie Kombinationen im String wie '+-', '[]' oder '\$\$' werden automatisch verhindert    
+  
+- Aktuelle Regeln zeigen Ersetzungsregeln an
+- Ersetzungsinfo gibt die Ersetzung für aktuell ausgewählte Regel komplett wieder
+  Dies ist notwendig, falls die Regel zu lang für die große Anzeigebox ist.
+
+- neue Regel generieren:
+  - Symbol und Ersetzung angeben und auf "`Regel hinzufügen"' klicken
+  - Zufällige Ersetzung für angegebenes Symbol über "`Zufällige Regel hinzufügen"': s.o. bei zufälliger Startstring
+
+"`Regeln löschen"' löscht alle Regeln
+
+Gewünschte Iterationstufe:
+- bis zu welcher Iterationstufe (0...Startstring) soll maximal generiert werden
+- die Generierung bricht ab, wenn mehr als 1.000.000 Zeichenanweisungen vorliegen würden
+- dann ist die erreichte Iterationsstufe u.U. niedriger, der Eintrag wird enstprechend aktualisiert
+
+Generierung der Turtle-Grafik-Zeichenanweisungen nach Parametervorgabe per Button "`Generiere FraktalIterationen"'
+Erzeugung zufälliger Parameter nach Vorgaben plus Generierung der Turtle-Grafik-Zeichenanweisungen  per Button "`Generiere Zufallsparameter und Zeichenanweisungen"'
+- hierbei werden die erlaubten Symbole für Startstring und Ersetzung nach Zeichen durchsucht, die keine Zeichenanweisung nach Tabelle !!!??? darstellen.
+- für jedes dieser Zeichen und 'F' wird eine Erstezungsregel erstellt
+
+
+%Anmerkung: Die Turtle hat das Intialkoordinatensystem $\vv{Vorn}=(1,0,0)$, $\vv{Links}=(0,0,1)$, $\vv{Oben}=(0,1,0)$
+
+
+%================================================================================================
+\subsubsection{Menü: VoxelRaum}
+
+linke Seite: Zeichnen und Nachbearbeiten im Voxelraum
+rechte Seite: Umwandlung Voxel zu Dreiecksmesh
+
+%---
+
+Voxelrand: gibt an welcher Rand beim Zeichnen und Erodieren mit Belegung 0 bleiben soll
+empfohlene Einstellung: Minimaler VoxelRand (= 3) + Anzahl Erosionschritte + zusätzliche Ausfrästiefe (s. Menü: Architekt)
+-> so können die Erosion und die Ausfrästiefe voll greifen, und brauchen nicht per Algorithmus beschränkt zu werden
+
+Minimaler Strichradius: Minimalradius beim Zeichnen der Turtle-Grafik
+
+Erosionszufallsseed: Seed für Erosion, beim gleichen Seed und gleichem Ausgangs-Voxelgebilde gleiche Ergebnisse
+Erosion: Vorgebenen Seed nutzen: an: obiger Seed wird verwenden, aus: zufälliger Seed wird verwendet
+
+Erosionswahrscheinlichkeit: Wahrscheinlichkeit $p_e$ mit der erodiert wird
+
+Anzeigebox Aktuelle Erosionschritte: zeigt die geplanten Erosionschritte in ihrer Reihenfolge an
+"`Füge Erosionschritt hinzu"' fügt neuen Schritt mit angegebener Erosionswahrscheinlichkeit hinzu
+"`Erosionschritte löschen"' löscht alle Erosionschritte
+
+Schwebende Fragmente entfernen: wenn Häkchen gesetzt wird nach der Erosion die Filterung schwebender Fragmente durchgeführt
+
+"`Berechne Voxel"' zeichnet die Turtle-Grafik im Voxelraum und führt danach die Erosion und ggf. Filterung schwebender Fragmente durch
+
+"`Dichte berechnen"' berechnet die Dichte von Voxeln ungleich $0$ bzgl. der jeweiligen Ebene und zeigt diese als Bild an
+die Dichte wird dabei normalisiert: weiss .. höchste Dichte, schwarz ... Dichte ist $0$ (keine entsprechenden Voxel in diesem Bereich)
+
+%---
+
+Verwackle Vertices: gibt an, ob die Vertices beim Umwandeln verwackelt werden sollen
+Verwacklungsstärke: Verwacklungstärke $K$ für das Verwackeln
+
+Zufallsgeratorparameter: a,c,m, sowie der Seed
+
+Glätte Mesh beim Verwackeln: gibt an ob Glättungsmethode angewendet werden soll
+
+Normalen-Berechung Wichtungsmethode: gibt an, nach welcher Methode die Vertexnormalen berechnet werden sollen
+
+Anzahl zusätzlicher Detailstufen: wieviele reduzierte Versionen sollen erstellt werden (0 ... nur Original)
+
+"`Berechne Dreiecksnetz aus Voxeln"' führt die Umwandlung mit den eingestellten Parametern durch
+"`Zeige berechnetes Dreiecksnetz"' zeigt das Dreiecksnetz der Höhle an
+
+
+%================================================================================================
+\subsubsection{Menü: Gänge}
+
+linke Seite: Einstellungen für Gänge
+rechte Seite: Detailobjekte für Gänge
+
+Gänge, Detailobjekte: 
+- lokale 2D-Position in [-1,1]x[-1,1]  angeben
+Resultierende Position wird durch Multiplizierung mit Gangbreite/2 bestimmt
+Gangbreite $B$ wird durch das entsprechende Feld festlegt
+
+%---
+
+Gangquerschnitt:
+- Punkte müssen bezüglich ihres Polarwinkels zirkulär aufsteigend im Uhrzeigersinn angeordnet sein
+
+"`Punkt hinzufügen"' fügt neuen Punkt mit aktuellen Werten (lokale Position, Tetxurekoord. X) zum Querschnitt hinzu (an letzter Position)
+"`Punkt löschen"' löscht markierten Punkt
+"`Änderung übernehmen"' übernimmt die aktuellen Werte für den angewählten Punkt
+%TIPP: durch Markieren eines Punktes und Klicken von "`Punkt hinzufügen"' wird eine Kopie des Punktes eingefügt
+
+Gangsegmentabstand: ist der Gangsegmentabstand $w$
+Texturkoordinate Y Erhöhung pro Abstand 1: gibt das $TY_{IncPro1}$ an
+
+Anzahl zusätzlicher Detailstufen: wieviele reduzierte Versionen des Gangs sollen erstellt werden (0 ... nur Original)
+
+Gangtextur: gibt die Textur für Gang und Adapter an, kann direkt eingetragen werden, oder per "`Texturdatei auswählen"' angewählt werden
+
+%---
+
+Anmerkung: Die Reihenfolge der Detailobjekte hat keine Relevanz
+"`Detailobjekt hinzufügen"' fügt ein Detailobjekt mit den aktuellen Einstellungen hinzu,
+ dazu muss eine Mesh-Datei ausgewählt werden (in einem von Irrlicht unterstützten Format, siehe \cite{W_Irrlicht}, z.B. .3ds-Format)
+"`Detailobjekt löschen"' löscht das aktuell markierte Detailobjekt
+"`Änderungen übernehmen"' übernimmt die aktuellen Werte für das angewählte Detailobjekt
+
+Benennung: Benennung des Detailobjekts im Szenegraph
+Skalierung: gewünschte Skalierung
+Rotation: Initialrotation, wenn der Gang in Richtung $(0,0,1)$ verlaufen würde
+
+Platzierung von Detailojekten:
+	
+- Abtastung: äquivalent Gangsegmentabstand des Gangs $w$ aus !!!Kapitel
+- beide Werte sollten nach Möglichkeit identisch gewählt werden, für exakte Platzierung
+- Faktor Num Abstand: gibt an, in welchen Vielfachen der Abstastung Objekte Platziert werden sollen
+- dabei Faktor für Num Abstand = $2^n$ für exakte Platzierung für $n$ zusätzliche Detailstufen des Gangs
+
+Num Abstand Min/ Num Abstand Max:
+Platzierung eins Objektes alle $n$ Segmente mit
+$n = (Faktor Num Abstand) * Zufallswert[Num Abstand Min, Num Abstand Max]$
+wobei $n$ nach Platzierung eines Objektes neu bestimmt wird
+
+für das erste Element gibt es separate Werte, um Objekte direkt am Gangeingang platzieren zu können
+Objekt am Ende des Gangs definitiv platzieren: ein Objekt wird bei $P(1)$ platziert, egal ob der Abstand passen würde oder nicht
+
+Pfadinfo: gibt den Dateipfad des Meshes des aktuell ausgewählten Detailobjektes wieder
+
+%================================================================================================
+\subsubsection{Menü: Architekt}
+
+links: allgemeine Architekt-Einstellungen
+rechts: Einstellungen für Subszenen
+
+%---
+
+Konstruktions-Zufallsseed: Seed für Konstruktion des Dungeons, also Platzieren der Räume und Verlegen der Gänge
+ bei gleichem Seed, gleicher Höhle und gleichen Einstellungen gleiches Ergebnis
+Konstruktion: Vorgebenen Seed nutzen: an: obiger Seed wird verwenden, aus: zufälliger Seed wird verwendet
+
+Raumsektorausdehnung: gibt die Ausdehnung $A$ der Sektoren in Voxeln an
+Minimalabstand Raum <-> Höhle: welchen Abstand soll die Andockposition vom andockenden Sektor mindestens haben
+- sinnvolle Werte liegen zwischen $0$ und $A$, z.B $A/2$
+
+Andockabstand zum Boden: gibt maximaler Abstand zum Boden $R$ an (0 ... kein Test diesbezüglich)
+Tiefe für Abstandstest: gibt gewünschte Minimaltiefe für den Test $T$ an
+
+Zusätzlicher Sicherheitsabstand: wird als Faktor angegeben $1.0$ entsprechen 100 Prozent,
+ gibt an als mit welcher Ausdehnung der Gang in den Kollisionstest zwecks Andocken einbezogen werden soll
+ - Nutzen: damit Detailobjekte, bei denen Teile aus dem Gang herausragen nicht mit der Höhle kollisieren
+ - wenn alles im Bereich [-1,1]x[-1,1] keine Zusatzausdehung benötigt
+ - kann im Normalfall auf $1.0$ gelassen werden
+
+Wahrscheinlichkeit für zusätzlichen Gang:
+gibt die Wahrscheinlichkeiten $p_{gh}$ und $p_{gr}$ an
+
+Platzierung von Subszenen:
+- jede Subszene (auch die leere Subszene ... nichts wird platziert) hat einen Platzierungswahrscheinlichkeitsfaktor $c$
+- getrennt für: Höhle (Zweiter Schritt der Dungeonkonstruktion nach !!!Kapitel), an Raum (Dritter Schritt)
+- die Wahrscheinlichkeit für die Platzierung einer Subszene ist $c/C$ mit $C$ als Summe aller Faktoren
+
+%---
+Anmerkung: Die Reihenfolge der Subszenen hat keine Relevanz
+"`Subszene hinzufügen"' fügt eine Subszene mit den aktuellen Einstellungen hinzu,
+ dazu muss eine .irr-Datei ausgewählt werden (Anforderungen an diese, s.u.)
+"`Subszene löschen"' löscht die aktuell markierte Subszene
+"`Änderungen übernehmen"' übernimmt die aktuellen Werte für die angewählte Subszene
+
+Benennung: Benennung der Subszene im Szenegraphen
+Skalierung: Skalierung der Subszene
+Stärke der Gangsplineableitungen: Faktoren $g$ für die Ableitungen der Gangsplines
+Pfadinfo: Dateipfad der markierte Subszene
+
+
+%- Minimal-Abstand zwischen Raum und Höhle festlegbar (empfohlen: halber Sektor für störungsfreien Gangverlauf, min. 0, max. Sektorausdehnung)
+%  -> auch Sektoren mit Voxelhöhle in 2 Sektoren Abstand müssen als FREI\_MIT\_VOXELNACHBAR katalogisiert werden
+%  (damit auch zu Rändern verbindbar)  
+%  (dennoch nur 2 Sektoren tiefer Scan)
+% -> 2 Sektoren Rand zu Voxelraum nötig 
+
+%================================================================================================
+\subsubsection{Menü: Erstellung}
+
+In diesem Menü lassen sich die einzelnen Generatorschritte auswählen
+"`Dungeon generieren"' führt diese Generatorschritte in der angegebenen Reihenfolge durch
+"`Dungeon anzeigen"' zeigt die aktuell erstellte 3D-Szene an, also den generierten Dungeon
+
+
+%================================================================================================
+\subsubsection{Menü: Weiteres}
+
+Zufallsgenerator-Parameter für FraktalGenerator, Erosion und Architekt einstellbar
+Farbe der Höhle festlegbar (die Werte sollten im Normalfall zwischen 0.0 und 1.0 liegen, können aber auch darüber oder darunter liegen)
+Hintergrundfarbe des Renderfensters: RGB-Farbe im Bereich $[0,255]\times[0,255]\times[0,255]$
+
+"`Änderungen übernehmen"' übernimmt die jeweiligen Farbänderungen
+
+"`Meshcache \& Texturebuffer löschen"' löscht alle gespeicherten Meshes und alle Texturen,
+die Dungeonszene und alle Subszenen werden ebenso gelöscht, da sie sonst auf invalide Daten zugreifen würden
+
+Im Normalfall nicht nötig, nur wenn viele verschiedene Subszenen und/oder Texturen eingeladen und wieder gelöscht werden,
+da die Meshes und Texturen im Cache bzw. Buffer bleiben.
+
+%================================================================================================
+\subsubsection{Anforderungen an Subszenen}
+
+Subszenen sind als .irr-Szenendateien abgelegt
+
+Folgende Geometrien müssen vorhanden sein und bilden die Adaptermeshes:
+"`Nord\_Andockstelle"'
+"`Ost\_Andockstelle"'
+"`Sued\_Andockstelle"'
+"`West\_Andockstelle"'
+Der Mesh muss den jeweiligen Namen tragen.
+
+- Andockstellenmeshes müssen so ausgerichtet sein, dass ihre Normalen müssen ungleich der Y-Achse sind
+(sonst lokales Koordinatensystem uneindeutig)
+- ihre Punkte müssen bezüglich ihres Polarwinkels zirkulär aufsteigend im oder gegen den Uhrzeigersinn angeordnet sein
+
+Folgende Geometrien können vorhanden sein und stellen die Verschlussgeometrie bzw. Andockgeometrie dar:
+Andockgeometrien:
+"`Nord\_offen"'
+"`Ost\_offen"'
+"`Sued\_offen"'
+"`West\_offen"'
+Verschlussgeometrien:
+"`Nord\_geschlossen"'
+"`Ost\_geschlossen"'
+"`Sued\_geschlossen"'
+"`West\_geschlossen"'
+Jeder beliebige Knoten im Szenegraph darf diese Namen tragen.
+
+ 

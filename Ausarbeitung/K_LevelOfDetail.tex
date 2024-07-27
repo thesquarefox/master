@@ -1,0 +1,721 @@
+\chapter{Methoden zur Reduzierung des Renderaufwandes}
+\label{K_LOD}
+
+Ein genereller Konflikt in der Computergrafik ist der Widerspruch zwischen möglichst hoher Detailfülle
+und möglichst schneller Darstellung.
+Diese Darstellung muss beispielsweise in Computerspielen in Echtzeit erfolgen, also mit mindestens 30 Bildern pro Sekunde.
+Für das Erreichen dieses Ziels sind bestimmte Techniken notwendig.
+So sollen nicht sichtbare Objekte nach Möglichkeit von vornherein vom Zeichnen ausgeschlossen werden.
+Sichtbare Objekte sollten in desto niedrigerer Detailstufen dargestellt werden, je weiter weg sie sich von der Kamera befinden.
+Die Verwendung verschiedener Detailstufen stellt das Prinzip des \emph{Level of Detail} dar.
+Das Weglassen von nicht sichtbaren Objekten ist das Prinzip des \emph{Culling}.
+Arten des Culling sind beispielweise \emph{Frustum Culling} (Ausschluß von Objekten außerhalb des Sichtbereiches der Kamera)
+und \emph{Occlusion Culling} (Ausschluß von verdeckten Objekten).
+
+%- Möglichkeiten für Level-of-Detail
+%  - Zerlegen des Gebietes in Sektoren
+%  - Erstellung verschiedener Detailstufen für jeden Sektor
+%  - im Spiel: abhängig von der Entfernung des Sektors, diesen in passender Detailstufe darstellen
+%  	- je weiter weg, desto weniger Details notwendig
+
+\section{Sichtbarkeitsgraph}
+
+Für die Entfernungs- und Sichtbarkeitstest ist es von Vorteil, einen \emph{Sichtbarkeitsgraphen} zu haben.
+%In seiner oft verwendeten Form stellt dieser einen Graphen dar,
+%der angibt, welche Ecken von Polygonen andere Polygonecken sehen können \cite[S.322 ff.]{B_CompGeo} \cite[S.315]{B_AlgGeo}.
+%Das Konzept wird nun auf Szenegraphen erweitert.
+Dieser enthält die Informationen, welches Objekt mit welchem anderen Objekt, räumlich betrachtet, direkt verbunden ist
+und von welchem Objekt zu welchem anderen gesehen werden kann.
+%!!!Valve Visleaf Methode + Quelle
+Die Objekte im Sichtbarkeitsgraphen des Dungeons sind: jedes Subnetz der Höhle, alle Gänge und alle Räume.
+
+\ \\
+Es wird bestimmt, wie die Objekte miteinander verbunden sind und welche Sichtbarkeitseigenschaften sie besitzen:
+
+Für jeden \emph{Raum} speichere, in welcher Himmelsrichtung welcher Gang angeschlossen ist.\footnote{Es
+werden die ursprünglichen Himmelsrichtungen der Subszene verwendet.}
+Der Aufbau des Raums, z.B. von welcher Andockstelle zu welcher eine Sichtverbindung existiert, ist extern zu ermitteln,
+da die zugrundeliegenden Subszenen importiert werden.
+
+Für jeden \emph{Gang} speichere, an welchem Ende welcher Raum bzw. die Höhle angeschlossen ist.
+Weiterhin speichere $\vv{P_1}$, $\vv{P_2}$, $\vv{P'_1}$ und $-\vv{P'_2}$, um zu wissen, wo der Gang endet und in welche Richtung er dort zeigt.
+Zusätzlich wird getestet, ob man von einem Ende des Gangs zum anderen Ende sehen kann.
+
+Für jedes \emph{Höhlensubnetz} speichere die Grenzen $X_{min}$, $X_{max}$, $Y_{min}$, $Y_{max}$, $Z_{min}$ und $Z_{max}$
+des zugrundeliegenden Voxelgebietes.
+Zusätzlich wird überprüft, in welcher der sechs Koordinatenachsenrichtungen (X+,X-,Y+,Y-,Z+,Z-) man von diesem Subnetz andere Subnetze sehen kann,
+also ob dort ein anderes Subnetz mit direkter Verbindung existiert.
+  
+\ \\
+Importiert man diese Informationen in die gewünschte Anwendung, so lässt sich ein Sichtbarkeitsgraph
+beispielsweise wie folgt erzeugen:
+Für die Knoten des Graphen werden die Verbindungsstellen zwischen direkt miteinander verbundenen Objekten verwendet.
+Zum Beispiel würde eine Andockstelle Gang zu Raum einen Knoten repräsentieren.
+Die Kanten werden durch die Objekte oder deren Teile gebildet.
+Beispielsweise würde ein Gang eine Kante darstellen, ein Raum entspricht bis zu sechs Kanten
+(zwischen jedem Paar von Andockstellen eine Kante).
+Als Kantengewicht wird der euklidische Abstand zwischen beiden Knoten genutzt.
+Falls man von einer Verbindungsstelle nicht zur anderen sehen kann, dann wird keine Kante eingefügt.
+Wenn man also von einem Ende eines Gangs nicht zur anderen Ende sehen kann,
+dann wird der Gang nicht als Kante verwendet.
+
+Der Sichtbarkeitsgraph kann in einem Spiel oder einer anderer Anwendung per Breitensuche oder Dijkstra-Algorithmus
+(dieser wird beispielsweise in \cite[S.670 ff.]{B_AlgoEinf} beschrieben) traversiert werden,
+um zu testen, wie weit ein Objekt vom Objekt, in dem sich die Kamera befindet, effektiv entfernt ist
+bzw. ob es überhaupt sichtbar ist (dies ist nur der Fall, wenn es im Graphen erreichbar ist).
+
+%Sichtbarkeits- und Entfernungsberechnungen für die einzelnen Teile des Dungeons:
+%- Welcher Teil ist wie weit von welchem entfernt?
+%- Sind zwei Abschnitte des Dungeons so verbunden, dass man von einem Abschnitt in den anderen sehen kann?
+%
+%- !Erklärung: Dijkstra-Algorithmus für Wegfindung
+%- Gebietsnachbarschaften per Bitmatrix speichern (true = Gebiete benachbart)
+%- Dijkstra-Algorithmus für Abstände zwischen 2 Gebieten
+%-> finale Abstandsmatrix (wichtig für LOD)
+%
+%Problem: Abstandsmatrix teuer bei vielen Levelbestandteilen
+%-> Modifikation: Graph wird gespeichert, Spiel führt Dijkstra selbst durch
+%
+%jedes Höhlenteil: bis zu 6 Nachbarknoten Nord,Ost,Süd,West,Oben,Unten  + Nachbarknoten für Gänge
+% - Test ob 2 Höhlenteile im Graph benachbart:
+%   - sind die Höhlenteile benachbart im Voxelraum ? (Test 1)
+%   - sind Voxel im Grenzbereich zwischen diesen beiden Teilen gesetzt? (Test 2)
+%	 -> beide Tests positiv: Nachbarn
+%
+%jeder Raum: bis zu 4 Nachbarknoten: Nord,Ost,Süd,West
+%jeder Gang: 2 Nachbarknoten
+%
+%jeder Knoten im Graph kennt seinen Typus: Höhlenteil, Gang (nicht-blickdicht), Gang (blickdicht), Raum (hier weiss der Raumersteller, ob blickdicht oder nicht)
+%
+%Strategie für Nutzung des Graphen in einem Spiel:
+%- bestimme Knoten in dem sich der Spieler momentan befindet
+%- wenn sich Knoten geändert hat:
+%  - berechne sichtbare Kinder (per Dijkstra)
+%  - lege passende Detailstufe für jedes sichtbare Kind fest (abhängig von der Entfernung)
+%- stelle alle sichtbaren Knoten mit der jeweils festgelegten Detailstufe dar
+
+\subsection{Sichtbarkeitsinformationen der Höhlensubnetze}
+
+Das Verfahren für die Sichtbarkeitsinformationen der Höhlensubnetze ist vergleichsweise einfach umsetzbar.
+Es wird für jede Achsenrichtung getestet, ob an irgendeiner Position 
+auf beiden Seiten der Grenzfläche ein Voxel mit Belegung $1$, also ein Freiraumvoxel, existiert.
+Falls ja, würde die Höhle über die Grenzfläche hinweg verlaufen
+und man könnte entlang der Achse von dem einen Subnetz in das andere schauen.
+
+Formel \ref{F_VisHoehle} beschreibt diesen Test.
+Der Parameter $Vis$ gibt für jede Achsenrichtung an, ob andere Höhlensubnetze sichtbar sind.
+Wenn der Wert $wahr$ beträgt, ist eine solche Sichtmöglichkeit vorhanden.
+
+\begin{equation}
+ \begin{aligned}
+ \label{F_VisHoehle}
+	Vis_{X+} =& \exists (y,z) \in [Y_{min},Y_{max}]\times [Z_{min},Z_{max}]:\\
+	          & Voxel(X_{max},y,z) = 1 \wedge Voxel(X_{max}+1,y,z) = 1 \\
+	Vis_{X-} =& \exists (y,z) \in [Y_{min},Y_{max}]\times [Z_{min},Z_{max}]:\\
+						& Voxel(X_{min},y,z) = 1 \wedge Voxel(X_{min}-1,y,z) = 1 \\
+	Vis_{Y+} =& \exists (x,z) \in [X_{min},X_{max}]\times [Z_{min},Z_{max}]:\\
+						& Voxel(x,Y_{max},z) = 1 \wedge Voxel(x,Y_{max}+1,z) = 1 \\
+	Vis_{Y-} =& \exists (x,z) \in [X_{min},X_{max}]\times [Z_{min},Z_{max}]:\\
+						& Voxel(x,Y_{min},z) = 1 \wedge Voxel(x,Y_{min}-1,z) = 1 \\
+	Vis_{Z+} =& \exists (x,y) \in [X_{min},X_{max}]\times [Y_{min},Y_{max}]:\\
+						& Voxel(x,y,Z_{max}) = 1 \wedge Voxel(x,y,Z_{max}+1) = 1 \\	
+	Vis_{Z-} =& \exists (x,y) \in [X_{min},X_{max}]\times [Y_{min},Y_{max}]:\\
+						& Voxel(x,y,Z_{min}) = 1 \wedge Voxel(x,y,Z_{min}-1) = 1 	
+	\end{aligned}
+\end{equation}
+
+%Anmerkung: sehr allgemeiner Test
+
+\subsection{Sichtbarkeitsinformationen der Gänge}
+
+Es soll geprüft werden, ob man von einem Ende des Gangs zum anderen Ende sehen kann.
+Dazu wird erst einmal ein beliebiges Stück eines polygonalen Schlauchs betrachtet.
+Gegeben seien drei Segmente $R_1$, $R_2$ und $R_3$ des Schlauchs.
+
+Die Überlegung ist folgende:
+Um $R_1$ und $R_3$ wird eine Bounding Box gelegt, welche im Folgenden als \emph{Viewing Volume} bezeichnet wird.
+Wenn die Querschnittsfläche von $R_2$ dieses Viewing Volume nicht schneidet, dann kann kein Lichtstrahl von $R_1$ nach $R_3$ gelangen.
+Somit könnte man nicht von $R_1$ nach $R_3$ sehen und
+dieser Abschnitt des polygonalen Schlauchs wäre blickdicht.
+Das Prinzip ist in Abbildung \ref{B_Vistest} dargestellt.
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=14cm]{Bilder/Vistest}
+	\caption[Blickdichtigkeitstest für Gänge]{\emph{Blickdichtigkeitstest für Gänge}:
+	 Zu sehen sind die drei Segmente des Schlauchs $R_1$, $R_2$, $R_3$ (grün) und das Viewing Volume (blau).
+	 Der eigentliche Kollisionstest kann mit den auf eine Ebene projizierten Elementen durchgeführt werden.}
+	 \label{B_Vistest}
+\end{figure}
+
+\ \\
+Diesen Test kann man nun für alle Segmente des Gangs plus die beiden Adapter durchführen.
+Problematisch ist die Laufzeitkomplexität bei insgesamt $n$ Segmenten von $\mathcal O(n^3)$
+(durch $\mathcal O(n^2)$ Viewing Volumes mit je $\mathcal O(n)$ Tests).\footnote{Ausgegangen
+wird von einer konstanten Laufzeit für den eigentlichen Schnitttest.}
+Für alle Segmente ist das Verfahren dadurch in der Praxis nicht anwendbar.
+
+Dies führt zu der Idee, die Tests auf "`interessante"' Segmente, im folgenden \emph{Region of Interest} genannt, zu beschränken.
+Als Regions of Interest sollen beide Andockstellen und die Segmente des Gangs für $\vv{P(0)}$ und $\vv{P(1)}$ gelten.
+
+Hinzu kommen Segmente, deren Abstand zur Achse $\overline{P(0)P(1)}$ möglichst groß ist,
+da dort die Wahrscheinlichkeit für eine Blickverdeckung am höchsten ist.
+Gesucht werden somit die Segmente an $\vv{P(t)}$ für die $D_{Achse}$ nach Formel \ref{F_LODAbstandAchse} ein lokales Maximum darstellt.
+Für eine einfachere Berechnung wird der quadratischen Abstand $\left(D_{Achse}\right)^2$ zur Bestimmung der Maxima verwendet.
+Die dadurch ermittelten Maxima sind identisch mit denen des einfachen Abstands.
+
+\begin{equation}
+ \begin{aligned}
+ \label{F_LODAbstandAchse}
+		D_{Achse} = \left|\vv{P(t)}-\vv{P(0)}-  \left( \vv{N_{Achse}} \cdot (\vv{P(t)}-\vv{P(0)}) \right) \cdot  \vv{N_{Achse}}\right|  \\
+		mit\ \vv{N_{Achse}} = \frac{\vv{P(1)}-\vv{P(0)}}{\left|\vv{P(1)}-\vv{P(0)}\right|}
+	\end{aligned}
+\end{equation}
+
+\ \\
+Die Anzahl der lokalen Maxima ist maximal $2$.
+%- Erläuterung (!siehe Notizbuch Do 15.12.2011):
+\emph{Beweis}: Der quadratischer Abstand zur Achse ist ein Polynom 6. Ordnung in $t$.
+Zur Bestimmung der Extrema wird erste Ableitung gleich $0$ gesetzt, welche ein Polynom 5. Ordnung darstellt.
+Gesucht werden also die Nullstellen eines Polynoms 5. Ordnung, wovon es maximal $5$ geben kann.
+Es gibt somit maximal $5$ Extrema.
+Davon sind mindestens $2$ lokale Minima (quadr. Abstand = 0): der Anfangspunkt $\vv{P(0)}$ und der Endpunkt $\vv{P(1)}$.
+
+Zwischen $2$ bestehenden Maxima muss stets ein Minimum liegen, da die Kurve stetig ist.
+Wenn $2$ lokale Maxima vorliegen, dann muss folglich dazwischen ein lokales Minimum existieren, d.h. $5$ lokale Extrema würden vorliegen.
+Mehr Maxima kann es nicht geben, da dann mehr als $5$ Extrema existieren würden.
+Folgerung: Es gibt maximal $2$ lokale Maxima. \emph{q.e.d.}
+
+%Es gibt drei Fälle.
+%Wenn kein Maximum existiert verläuft die Kurve auf der Achse.
+%Wenn $1$ lokales Maximum existiert, dann gibt es keine weiteren lokalen Minima, d.h. $3$ lokale Extrema liegen vor.
+%  - 1.Ableitung = 0 -> Nullstellen eines Polynoms 5. Ordnung gesucht -> max. 5 Nullstellen -> max. 5 lok. Extrema
+
+\ \\
+Da die exakten Nullstellen eines Polynoms 5. Ordnung schwer zu bestimmen sind,
+soll die Ermittlung der lokalen Maxima mit einer numerischen Lösung erfolgen.
+Beim der Erstellung des polygonalen Schlauchs wird während des Abtastens der Kurve der Abstand von $\vv{P(t)}$ zur Achse überwacht.
+Liegt der Abstand im letzten und folgenden Schritt niedriger als im aktuellen, wurde ein lokales Maximum gefunden.
+
+Insgesamt gibt es also maximal sechs Regions of Interest, was eine konstante Maximalanzahl nötiger Tests bedeutet.
+Die Laufzeitkomplexität des Tests für $n$ Segmente liegt nun bei $\mathcal O(1)$.
+
+\subsubsection{Durchführung des Tests mittels projizierten Bounding Boxes}
+
+Die Regions of Interest $R_1$, $R_2$, ... , $R_n$ seien nach ihrer Reihenfolge entlang des Gangs angeordnet.
+Zuerst erfolgt die  Konstruktion der Viewing Volumes aus allen Paaren $(R_i,R_j)$ mit $i+1<j$, also mit mindestens einer Region of Interest dazwischen.
+Dann werden für jedes Viewing Volume aus $(R_i,R_j)$ alle Regions of Interest $R_k$ mit $i<k<j$ getestet.
+Der eigentliche Schnitttest wird mit projizierten Bounding Boxes durchgeführt.
+%Gegeben seien die drei Region of Interests $R_1$, $R_2$ und $R_3$.
+
+Eine Region of Interest sei gegeben durch die Position $\vv{P_R}$,
+die Vektoren des lokales Koordinatensystems $\vv{Links_R}$ und $\vv{Oben_R}$
+und die Bounding Box $[RMin_x,RMax_x]\times[RMin_y, RMax_y]$ des Segmentquerschnitts.
+Diese Bounding Box ist auf das 2D-Koordinaten"-system mit $-\vv{Links_R}$ als X-Achse, $\vv{Oben_R}$ als Y-Achse
+und $\vv{P_R}$ als Nullpunkt bezogen.
+  
+Ein Viewing Volume wird durch seinen Bezugspunkt $\vv{P_V}$,
+die Vektoren des lokalen Koordinatensystems $\vv{Links_V}$ und $\vv{Oben_V}$
+und seine Bounding Box $[VMin_x,VMax_x]\times[VMin_y,VMax_y]$ gekennzeichnet.
+Diese Bounding Box ist auf das 2D-Koordinaten"-system mit $-\vv{Links_V}$ als X-Achse, $\vv{Oben_V}$ als Y-Achse
+und $\vv{P_V}$ als Nullpunkt bezogen.
+
+\ \\
+Zur Konstruktion des Viewing Volumes aus $R_i$ und $R_j$ wird zuerst das lokale Koordinatensystem nach Formel \ref {F_ViewVolKoordsys} ermittelt.
+Der Normalenvektor der Viewing Volume-Ebene verläuft entlang der Achse $\overline{P_{Ri}P_{Rj}}$.
+Bezugspunkt sei $\vv{P_V} = \vv{P_{Ri}}$.
+
+\begin{equation}
+ \begin{aligned}
+		\vv{Links_V} = \frac{\vv{vorn} \times (0,1,0)}{\left|\vv{vorn} \times (0,1,0)\right|},\ 
+		\vv{Oben_V} = \vv{Links_V} \times \vv{vorn}\\
+		\ mit\ \vv{vorn} = \frac{\vv{P_{Rj}}-\vv{P_{Ri}}}{\left|\vv{P_{Rj}}-\vv{P_{Ri}}\right|}
+ \end{aligned}
+ \label{F_ViewVolKoordsys}
+\end{equation}
+
+\ \\
+Nun werden die beiden Bounding Boxes der Region of Interests $R_i$ und $R_j$ in die Ebene des Viewing Volumes projiziert.
+Die generelle Projektion einer Bounding Box einer Region of Interest $R$ erfolgt durch die Projektion
+aller vier Bounding Box-Eckpunkte auf die Ebene und das Bilden einer neuen Bounding Box um diese Projektionen.
+Formel \ref{F_BBProj} gibt das Beispiel für den unteren linken Eckpunkt an.
+Dessen Projektion sei als $\vv{Q_{proj}}$ bezeichnet.
+Die anderen Eckpunkte werden äquivalent behandelt.
+
+\begin{equation}
+ \begin{aligned}
+ 		\vv{temp} =& \vv{P_R} - \vv{P_V} -RMin_x \cdot \vv{Links_R} + RMin_y \cdot \vv{Oben_R}\\
+ 		\vv{Q_{proj}} =& \left(-\vv{temp} \cdot \vv{Links_V}, \vv{temp} \cdot \vv{Oben_V}\right)
+ 		\label{F_BBProj}
+ \end{aligned}
+\end{equation}
+
+\ \\
+Bei den Bounding Boxes von $R_i$ und $R_j$ kann dabei der Term $\vv{P_R} - \vv{P_V}$ aus Zeile $1$
+weggelassen werden, da dieser in Normalenrichtung der Ebene verläuft und somit bei
+der Projektion entfällt.
+Die Viewing Volume-Bounding Box $[VMin_x,VMax_x]\times[VMin_y,VMax_y]$ wird durch eine Bounding Box
+um alle acht projizierten Eckpunkte gebildet.
+
+\ \\
+Für den Test wird nun die Region of Interest $R_k$ auf die Ebene des Viewing Volumes projiziert
+und der Schnitttest nach Formel \ref{F_VisG} durchgeführt.
+Die projizierte Bounding Box der Region of Interest
+sei $[R_kMin_x^{pr},R_kMax_x^{pr}]\times[R_kMin_y^{pr},R_kMax_y^{pr}]$.
+
+Wenn sich die Bounding Boxes überschneiden ($Vis_G = wahr$), ist der Gang möglicherweise nicht blickdicht.
+Ansonsten liegt \emph{definitive Blickdichtigkeit} vor,
+d.h. man kann in keinem Fall von einem Ende des Gangs durch den Gangs zum anderen Ende sehen.
+
+\begin{equation}
+ \begin{aligned}
+		Vis_G = & \left(R_kMin_x^{pr} < VMax_x\right) \wedge \left(VMin_x < R_kMax_x^{pr}\right) \\
+		        &\wedge \left(R_kMin_y^{pr} < VMax_y\right) \wedge \left(VMin_y < R_kMax_y^{pr}\right)
+ \end{aligned}
+ \label{F_VisG}
+\end{equation}
+
+\ \\
+Der Vorteil der Projektion liegt in einem schnelleren Test.
+Wenn ein Viewing Volume einmal erstellt ist,
+können alle gewünschten Regions of Interest per zweidimensionalen Überschneidungstest überprüft werden,
+anstatt dreidimensional, wie es ohne Projektion der Fall wäre.
+In Abbildung \ref{B_VisGangShot} ist ein Vergleich zwischen einem blickdichten
+und einem nicht blickdichten Gang aufgezeigt.
+Für das Bestimmen dieser Informationen wurde der obige Test verwendet.
+
+\begin{figure}[htbp]
+  \centering  
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Gang_Blickdicht_false}}
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Gang_Blickdicht_true}}  
+  \hfill
+	\caption[Blickdichtigkeit von Gängen]{\emph{Blickdichtigkeit von Gängen}: v.l.n.r. (a) nicht blickdicht, (b) blickdicht}
+	\label{B_VisGangShot}
+\end{figure}
+
+
+%============================================================================================
+\section{Reduktion von Dreiecksnetzen}
+
+%Die meisten Objekte des Dungeons bestehen aus Dreiecksnetzen.
+%Aus Dreiecksnetzen aufgebaute Objekte werden für die Generierung weiterer Detailstufen reduziert.
+%Die Reduktion von Dreiecksnetzen dient der Erstellung zusätzlicher Detailstufen für die jeweiligen Objekte.
+Für die Generierung verschiedener Detailstufen von aus Dreiecksnetzen aufgebauten Objekten werden deren Netze reduziert.
+Wichtig bei dieser Reduktion ist zum einen, dass das reduziertes Objekt möglichst weit dem Original entspricht,
+und zum anderen, dass es möglichst einfach gestaltet ist, d.h. möglichst wenig Dreiecke und Vertices besitzt.
+
+\ \\
+Für die \emph{Räume} bleibt die Reduktion dem Raumgestalter überlassen.
+Es erfolgt für diese keine Reduktion im Generator.
+
+Für die \emph{Gänge} ermöglicht die schlauchartige Struktur eine effiziente Reduktion.
+Für Reduktionsstufe $i$ wird der Gang erneut erstellt, mit gleichem Gangsegmentabstand $w$ wie im Original,
+aber nur jedes $2^i$-te Segment wird wirklich eingefügt.
+Zusätzlich werden alle lokalen Maxima eingefügt, damit die Blickdichtigkeitsberechnung für alle reduzierten Versionen ebenso gilt.
+Resultat ist eine geringere Anzahl benötigter Vertices und Dreiecke bei prinzipiell gleichem Gangverlauf.
+Diese Anzahl wird bei jeder zusätzlichen Reduktionsstufe halbiert.
+
+Für die \emph{Höhle} muss ein anderer Algorithmus eingesetzt werden.
+Ziel ist die Generierung mehrerer Detailgrade für jedes Subnetz der Höhle.
+Wichtig ist, dass die Meshes aller Detailstufen (inkl. Original) an den Rändern zusammenpassen.
+D.h. Position und Normalen müssen an diesen Stellen exakt gleich sein,
+damit beliebige Detailstufen in Kombination verwendet werden können.
+Für jede Detailstufe und alle möglichen Randbeziehungen je eine extra Variante zu generieren
+wäre deutlich zu speicheraufwändig, da bis zu 26 Nachbarmeshes möglich sind
+(wobei 6 davon eine Grenzfläche teilen, also eine große Zahl gemeinsamer Grenzvertices besitzen können).
+
+\subsection{Reduktion der Höhlensubnetze}
+
+% - Verwendung von CGAL? (Algorithmus: Triangulated Surface Mesh Simplification)
+% http://www.cgal.org/Manual/latest/doc_html/cgal_manual/Surface_mesh_simplification/Chapter_main.html
+% - eventuelles Problem: Übergänge Gang/Raum <-> Höhle:
+%	- meist unregelmäßig, kein harter Schnitt
+%- Übersicht über die Verfahren
+%- umgesetztes Verfahren
+%  - Laufzeitbetrachtung
+Die Topologie eines Meshs kann nach \cite[S.14-17]{B_LoD3D} über den Genus und die Mannigfaltigkeit beschrieben werden.
+Der \emph{Genus} ist die Anzahl von Löchern im Mesh. Eine Kugel hat einen Genus von $0$, ein Torus einen von $1$.
+In \emph{mannigfaltigen} Meshes hat jede Kante exakt zwei benachbarte Dreiecke und jedes Dreieck teilt seine Kanten mit exakt drei benachbarten Dreiecken. \\
+\emph{Topolgogie-erhaltende} Algorithmen bewahren die Mannigfaltigkeit und den Genus in jedem Schritt.
+Manche Algorithmen sind \emph{topologie-tolerant}, sie ignorieren nicht-mannigfaltige Topologie und verhalten sich ansonsten topologie-erhaltend. \\
+\emph{Topologie-modifizierende} Algorithmen können die Mannigfaltigkeit und den Genus von Meshes verändern,
+was üblicherweise schlechtere visuelle Ergebnisse zur Folge hat.
+ 
+Wünschenswert wäre ein topologie-erhaltender bzw. topologie-toleranter Algorithmus, damit die Höhlenstruktur besser erhalten bleibt.
+Da die Öffnungen für Gänge und die Grenzen zu anderen Subnetzen im Gegensatz zum Rest des Meshes nicht-mannigfaltig sind
+(die Grenzkanten haben nur ein benachbartes Dreieck),
+muss bei Verwendung eines topologie-erhaltenden Algorithmus dieser zu einem topologie-toleranten Algorithmus modifiziert werden.
+
+%Fidelity-based simplification
+%Budget-based simplification
+\ \\
+Viele Reduktionsalgorithmen verwenden folgendes Prinzip:
+Der Reduktionsprozess setzt sich aus der Durchführung einer meist größeren Anzahl von Anwendungen lokaler Reduktionsoperatoren zusammen.
+Die Auswahl der Region, an der der Operator angewendet wird, erfolgt i.d.R. anhand einer Fehlermetrik.
+Die Region mit dem kleinsten zu erwartenden Fehler wird als nächstes verwendet.
+\cite[S.21 ff.]{B_LoD3D} beschreibt folgende lokalen Reduktionsoperatoren:
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=13cm]{Bilder/EdgeCollapse}
+	\caption[Edge Collapse]{Edge Collapse \cite{garland1997surface}}
+	\label{B_EdgeCollapse}
+\end{figure}
+
+\ \\
+\emph{Edge Collapse}: Als Reduktionsmethode wird die Kontraktion einer Kante verwendet (siehe Abbildung \ref{B_EdgeCollapse}).
+Die zwei Endpunkte einer Kante werden zu einem Vertex verschmolzen.
+Die Position des resultierenden Vertex  kann nach verschiedenen Methoden berechnet werden, z.B. als Mitte zwischen beiden Ausgangsvertices.
+Beide Endpunkte der Kante dürfen nicht mehr als zwei gemeinsame Nachbarn haben, da sonst nicht-mannigfaltige Strukturen entstehen
+(siehe Abbildung \ref{B_EdgeCollapseMannig}).\\
+\emph{Vertex-Pair Collapse}: Die Reduktionsmethode funktioniert äquivalent zu Edge Collapse,
+doch hier brauchen die verschmelzenden Vertices nicht zwangsläufig durch eine Kante verbunden zu sein.\footnote{Diese
+Beschreibung folgt \cite{garland1997surface}.
+\cite{B_LoD3D} nennt diesen Operator explizit für zwei nicht-verbundene Vertices.}\\
+\emph{Triangle Collapse}:
+Alle drei Vertices eines Dreiecks werden zu einem einzigen Vertex verschmolzen.
+Die Methode ist äquivalent zu zwei hintereinander ausgeführten Edge Collapses. \\
+\emph{Cell Collapse}:
+Der Raum wird mittels eines gleichmäßigen Gitters in Zellen unterteilt.
+Alle Vertices, die zusammen in einer Zelle sind, werden zu einem Vertex verschmolzen. \\
+\emph{Vertex Removal}:
+Ein Vertex wird entfernt.
+Das entstehende Loch des Meshes wird retrianguliert und dadurch wieder geschlossen. \\
+\emph{Polygon Merging}:
+Benachbarte, möglichst weit koplanare Polygone werden zu einem größeren Polygon verschmolzen.
+Dieses wird später trianguliert. \\
+\emph{General Geometric Replacement}:
+Eine Menge von adjazenten Dreiecken wird durch eine andere Menge von adjazenten Dreiecken ersetzt,
+so dass die Begrenzung die gleiche bleibt.
+Die neue Menge von Dreiecken besitzt dabei weniger Dreiecke als die alte.
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=14cm]{Bilder/Mannigfaltigkeit}
+	\caption[Verlust der Mannigfaltigkeit bei mehr als zwei gemeinsamen Nachbarn]{\emph{Verlust der Mannigfaltigkeit bei mehr als zwei gemeinsamen Nachbarn}:
+	 betrachten wird ein Ausschnitt eines Dreiecksnetzes: v.l.n.r. \\
+	 (a) Gezeigt ist die Ausgangstriangulation. Die zu kontrahierende Kante ist rot dargestellt. Beide Endpunkte der Kante (grün) haben drei gemeinsame Nachbarpunkte (gelb). \\
+	 (b) Durch den Edge Collapse verschmelzen das rote und blaue Dreieck zum orangenen Dreieck.
+	 Die Mannigfaltigkeit ist verloren gegangen, da nun zwei Kanten dieses Dreiecks zu keinen weiteren Dreiecken gehören.}
+	 \label{B_EdgeCollapseMannig}
+\end{figure}
+
+\ \\
+Im Vergleich lassen sich die Collapse-Operatoren am einfachsten implementieren.
+Cell Collapse stellt das einfachste Verfahren dar, ist aber, wie auch Vertex-Pair Collapse, ein topologie-modifizierender Reduktionsschritt.
+Edge Collapse und Triangle Collapse sind topologie-erhaltend.
+%Zudem ist er nicht invariant gegenüber Rotation und Translation, welches aber im Kontext der Höhlendreicksnetze irrelevant wäre.
+Edge Collapse und Vertex-Pair Collapse lassen sich besser steuern als Triangle Collapse, da sie pro Schritt kleinere Änderungen vornehmen.
+
+%Tabelle mit Eigenschaften (diese auch erklären)
+%- Laufzeit
+%- Speicherbedarf
+%- Topologieerhaltung
+%- erfordert Retriangulierung
+%- ...
+%\ \\
+%Error Metrics
+
+\ \\
+Möglichkeiten für Fehlermetriken werden in \cite[S.47 ff.]{B_LoD3D} genannt.
+Beispiele dafür sind: die Abstände zwischen vom Reduktionsoperator betroffenen Vertices, die Abstände
+vom betroffenen Vertex und der durch seine Umgebung gelegte Fläche, die Normalenänderungen
+im betroffenen Gebiet.
+
+Die lokalen Reduktionsoperatoren lassen sich ggf. in Verbindung mit entsprechenden Fehlermetriken zu konkreten
+Algorithmen, wie sie in \cite[S.121 ff.]{B_LoD3D} beschrieben werden, kombinieren.
+\emph{Vertex Clustering}, \emph{Vertex Decimation} und \emph{Quadric Error Metrics} stellen dabei drei der wichtigsten Verfahren dar.
+
+% (mit Vorteilen und Nachteilen)
+\ \\
+\emph{Vertex Clustering}, wie es von Rossignac und Borrel in \cite{rossignac1992multi} beschrieben wurde,
+verwendet die Methode Cell Collapse zur Reduktion.
+Zuerst wird jedem Vertex eine Wichtigkeit bzw. Wichtung zugeordnet.
+Vertices großer Flächen oder an ausgeprägten Krümmungen werden stärker gewichtet. 
+Dann wird ein 3D-Gitter über das zu reduzierende Objekt gelegt und dieses so in Zellen aufgeteilt.
+Alle Vertices in einer Zelle werden zum am höchsten gewichteten Vertex kollabiert,
+d.h. der wichtigste Vertex repräsentiert nun alle Vertices der Zelle.
+Degenerierte Dreiecke werden entfernt.
+Der Algorithmus ist einer der schnellsten bekannten Reduktionsalgorithmen.
+%und läuft in $\mathcal O(n)$ (mit $n$ als Anzahl der Vertices), falls jeder Vertex eine 
+Nachteil ist vor allem, dass der Algorithmus stark topologie-modifizierend ist.
+
+\ \\
+\emph{Vertex Decimation} wird in  \cite{schroeder1992decimation} beschrieben und nutzt den Operator Vertex Removal.
+Der Algorithmus verwendet mehrere Durchläufe.
+In jedem Durchlauf werden Vertices nach bestimmten Kriterien entfernt und danach die entstandenen Löcher retrianguliert.
+Als Hauptkriterium wird die Distanz des zu entfernenden Vertex zur Ebene, die durch die benachbarten Vertices gelegt wird, genommen.
+Ist diese unter einem Grenzwert $\epsilon$, so wird der Vertex entfernt.
+Das $\epsilon$ wird in jedem Durchlauf erhöht.
+Der Algorithmus terminiert beim Erreichen des gewünschten Reduktionslevels.
+%Die Laufzeit des Algorithmus beträgt $\mathcal O(m\cdot n)$ mit $m$ als Anzahl der Durchläufe und $n$ als Anzahl der Vertices
+Er erweist sich in der Praxis als recht schnell.
+Nachteil ist die schlechte Steuerbarkeit über den $\epsilon$-Wert.
+Ist dieser zu groß, wird das Modell zu stark vereinfacht. Bei zu kleinen Werten werden zu viele Durchläufe benötigt, wodurch der Algorithmus langsam wird.
+Im Kontext der Höhlenmeshes ist anzumerken, dass durch ihre zerklüftete Struktur ein ähnlicher Distanz-Wert für die meisten Vertices vorliegt.
+Weiterhin würde der Algorithmus lokal stark ausgeprägte Voxelkanten hervorheben und eher weichere Kanten verschwinden lassen.
+Dadurch ist diese Methode hierfür ungeeignet.
+  
+\ \\
+\emph{Quadric Error Metrics} wurde von Garland  und Heckbert 1997 in \cite{garland1997surface} vorgestellt.
+Der Algorithmus basiert auf Vertex-Pair Collapses.
+Für die Kontraktion zugelassene Vertex-Paare sind alle Paare, die über eine Kante verbunden sind,
+sowie alle Paare, deren Abstand zueinander einen spezifierten Grenzwert unterschreitet.
+Als Fehlermetrik wird die Quadric Error Metric benutzt. Jedem Vertex ist eine Quadrik $Q$ zugeordnet,
+die kumulativ speichert, welche Verzerrungen durch diesen Vertex und seine bisherigen Collapses verursacht werden.
+Die Quadriken werden am Anfang für jeden Vertex berechnet.
+Bei jedem Collapse von Vertex $a$ und Vertex $b$ zu Vertex $c$ ergibt sich $Q_c = Q_a + Q_b$.
+Die Vertex-Paare $(a,b)$ werden in einer Prioritätswarteschlange,
+sortiert nach steigendem Quadric Error $Q_a + Q_b$, gespeichert und abgearbeitet.
+Der Algorithmus terminiert, wenn die gewünschte Anzahl an Dreiecken erreicht wurde.
+Das Verfahren erzeugt qualitativ sehr hochwertige Ergebnisse und die erzeugte Dreiecksanzahl lässt sich exakt steuern.
+Allerdings hat die Abarbeitung der Vertex-Paare durch die Verwendung einer Prioritätswarteschlange
+eine Laufzeitkomplexität von $\mathcal O(n \log n)$ ($n$ als Anzahl der Vertices), was bei einer hohen Vertexanzahl schnell zu vergleichsweise hohen Laufzeiten führt.
+
+\subsubsection{Reduktionsalgorithmus}
+
+%Idee: Triangle Collapse
+%- Dreiecke werden zuammengemergt
+%  - jedes Dreieck, bei dem alle 3 Vertices noch original sind (also nicht durch Collapse entstanden)
+%- ansonsten keine weitere Metrik
+%  - Vermutung: mit Metrik würde man entweder auf Collapses verzichten müssen, damit Nachbarcollapses möglich sind
+%							oder viel Rechenaufwand betreiben müssen, um die optimale Kontraktion zu finden (Vermutung: NP-schwer)
+%- damit keine 1-Voxel-dicken Säulen zu arg deformiert werden:
+%	- bei Umwandliung in Dreiecksnetz darauf achten, dass Vorder- und Rückseite versetzt trianguliert (Projektionen der Diagonalen schneiden sich)							
+%-> durch die Voxelstruktur ähnliches Prinzip wie Vertex Clustering
+%- lineare Laufzeit, Speicherplatz-sparend
+%
+%- die verwendete Fehlermetrik in Verbindung mit der regelmäßigen Struktur des Netzes führt zu einer Art Vertex Clustering,
+%welches aber im Gegensatz zu echtem Vertex Clustering Topologie erhaltend ist
+%
+%- falls Vertex-Beleuchtung verwendet wird, könnte man eine modifizierte Fehlermetrik verwenden:
+%  je ähnlicher die Vertex-Normalen desto eher wird der Triangle-Collapse durchgeführt
+Der implementierte Ansatz verwendet Edge Collapse als Reduktionsoperator.
+Als Fehlermetrik wird in jeder Reduktionstufe jeder Vertex höchtens einmal kollabiert.
+Dies bedeutet: Wenn von einer Kante mindestens ein Vertex schon kollabiert ist, dann erfolgt keine Kontraktion.
+Diese Metrik sei als \emph{Single Contraction} bezeichnet.
+Vertices an Meshgrenzen werden nicht kollabiert, damit die Öffnungen für Gänge und Grenzen zu anderen Höhlenmeshes erhalten bleiben.
+
+Durch die auf Grund der Voxelbasiertheit sehr regelmäßige Struktur des Dreiecksnetzes,
+wirkt diese Methode ähnlich dem Cell Collapse bzw. der Vertex Clustering-Methode,
+ist aber topologie-erhaltend.
+Zusätzlich wird eine Glättung des Meshs erreicht, statt Kanten der Voxel weiter hervorzuheben.
+
+\begin{algorithm}
+\caption{Reduktion eines Dreicksnetzes, per Edge Collapse und Single Contraction}
+\label{A_LODHoehle}
+\algorithmicrequire{Dreicksnetz aus Dreiecken $(i,j,k)$ und Vertices $V_i$, Adjazenzliste aller Vertices.\\ $Adr$, $Flag$ und $Flag'$ sind mit $-1$ initialisiert.} \\
+\algorithmicensure{reduziertes Dreicksnetz aus Dreiecken $(i,j,k)$ und Vertices $V'_i$}
+\begin{algorithmic}[1]
+		
+	\ForAll{$(i,j) \in Kanten\ aller\ Originaldreiecke$}
+		\If{$Adr(i)+Adr(k)+\vv{V_i.T}.x+\vv{V_j.T}.x+\vv{V_i.T}.y+\vv{V_j.T}.y < -5.5$}
+			
+			\ForAll{$k \in Adjazenzliste(i)$}
+				\If{$Adr(k)<0$}			
+						\State $Flag(k) \gets i$ \Comment {Originalvertex markieren}
+				\Else
+						\State $r \gets Adr(k)$	 \Comment {kontrahierten Vertex markieren}
+						\State $Flag'(r) \gets i$			
+				\EndIf
+			\EndFor
+			
+			\State $doppelt \gets 0$
+			
+			\ForAll{$k \in Adjazenzliste(j)$}
+				\If{$Adr(k)<0$}	
+						\State $\textbf{if}\ Flag(k)=i\ \textbf{then}\ doppelt \gets doppelt+1$	
+				\Else
+						\State $r \gets Adr(k)$
+						\State $\textbf{if}\ Flag'(r)=i\ \textbf{then}\ doppelt \gets doppelt+1$		
+				\EndIf
+			\EndFor
+			
+			\If{$doppelt<3$}	\Comment {Bedingung für Erhaltung der Mannigfaltigkeit}
+				\State $\textbf{create}\ Vertex\ V'_{r}$ \Comment {Durchführung des Edge Collapse}
+				\State $\vv{V'_r.Pos} \gets (\vv{V_i.Pos} + \vv{V_j.Pos}) / 2$
+				\State $\vv{V'_r.T} \gets (-1,-1)$		 \Comment {kein Gangöffnungs- oder Grenzvertex}
+				\State $Adr(i) \gets r$
+				\State $Adr(j) \gets r$
+			\EndIf		
+			
+		\EndIf
+	\EndFor
+	
+	\ForAll{$V_i \in Originalvertices$} \Comment {Nicht kontrahierte Vertices übernehmen}
+		\If{$Adr(i)<0$}
+			\State $\textbf{create}\ Vertex\ V'_{r}$
+			\State $\vv{V'_r.Pos} \gets \vv{V_i.Pos}$
+			\State $\vv{V'_r.T} \gets \vv{V_i.T}$
+			\State $\vv{V'_r.N} \gets \vv{V_i.N}$		
+			\State $Adr(i) \gets r$			
+		\EndIf
+	\EndFor
+	
+	\ForAll{$(i,j,k) \in Originaldreiecke$} \Comment {Nicht degenerierte Dreiecke übernehmen}
+			\If{$ Adr(i)\neq Adr(j)\wedge Adr(i)\neq Adr(k)\wedge Adr(j)\neq Adr(k)$}
+				\State $\textbf{create}\ Dreieck'(Adr(i),Adr(j),Adr(k))$			
+			\EndIf	
+	\EndFor
+	
+\end{algorithmic}
+\end{algorithm}
+
+\begin{figure}[htbp]
+  \centering  
+  \subfloat{\includegraphics[width=14cm]{Bilder/Screenshot_LOD_0}}\\    
+  \subfloat{\includegraphics[width=14cm]{Bilder/Screenshot_LOD_1}}  
+	\caption[Reduktion der Höhlennetze]{\emph{Reduktion der Höhlennetze}:
+	 v.o.n.u. (a) Originaldetailstufe, (b) eine Reduktionsstufe}
+	 \label{B_LODH1}
+\end{figure} 
+
+\begin{figure}[htbp]
+  \centering  
+  \subfloat{\includegraphics[width=14cm]{Bilder/Screenshot_LOD_2}}\\    
+  \subfloat{\includegraphics[width=14cm]{Bilder/Screenshot_LOD_4}}  
+	\caption[Reduktion der Höhlennetze ff.]{\emph{Reduktion der Höhlennetze ff.}:
+	 v.o.n.u. (a) zwei Reduktionsstufen, (b) vier Reduktionsstufen}
+	\label{B_LODH2}
+\end{figure}
+
+\ \\
+Das Verfahren ist in Algorithmus \ref{A_LODHoehle} aufgezeigt und wird für jedes Subnetz der Höhle separat angewendet.
+Das Subnetz sei gegeben durch seine Vertex- und Dreiecksmenge wie in Kapitel \ref{KK_Dreiecksnetze} erläutert.
+Die Grenzvertices haben eine X-Texturkoordinate von $1$ (siehe Kapitel \ref{KK_VoxelNormalen}), andere von $-1$.
+Äquivalent sollen Vertices an Gangöffnungen eine Y-Texturkoordinate von $1$ haben, andere von $-1$ \footnote{Dies
+lässt sich bei der Umwandlung der Voxel in das Dreiecksnetz einfach bewerkstelligen:
+Vertices mit solchen Nachbarvoxeln, die Belegung $10$ haben, sind Gangöffungsvertices (vgl. Kapitel \ref{KK_AndockenHoehle}).}.
+
+Vorm Start des Algorithmus erfolgt der Aufbau der Adjazenzliste.
+Dazu laufe über alle Dreiecke und füge für die drei Eckpunkte die Adjazenzen hinzu.
+Es wird nur eine Umlaufrichtung betrachtet, damit keine doppelten Adjazenzen auftreten.
+Aus Dreieck $\vv{P_1},\vv{P_2},\vv{P_3}$ ergeben sich als Adjazenzen:
+für $\vv{P_1}$ ist $\vv{P_2}$ adjazent, für $\vv{P_2}$ ist $\vv{P_3}$ adjazent und für $\vv{P_3}$ ist $\vv{P_1}$ adjazent.
+
+Der Algorithmus unterscheidet zwischen Originalvertices $V_i$ und Vertices $V'_i$, die dem reduzierten Netz angehören.
+Jeder $V_i$ erhält einen Verweis $Adr$ auf einen Vertex aus dem reduzierten Netz und eine Markierung $Flag$, die der Markierung von Nachbarschaften dient.
+Jeder $V'_i$ erhält eine Markierung $Flag'$, ebenfalls für die Markierung von Nachbarschaften.
+Alle $Adr$-, $Flag$- und $Flag'$-Werte sind anfangs mit $-1$ initialisiert.
+Alle Vertices besitzen Indices $\geq0$, d.h. solange für einen Vertex $V_i$ $Adr(i)<0$ gilt, ist dieser Vertex noch nicht kontrahiert,
+anderenfalls trägt $Adr$ die neue Adresse des kontrahierten Vertex.
+$Flag$ und $Flag'$ sind durch diese Markierung anfangs keiner Nachbarschaft zugeordnet.
+
+\ \\ 
+Der Algorithmus muss topologie-tolerant sein, d.h. Grenzvertices und Gangöffnungsvertices müssen erhalten bleiben.
+Weiterhin dürfen nur Originalvertices (also noch nicht verschmolzene Vertices) kontrahiert werden.
+Somit lässt sich folgender Test durchführen:
+Addiere die X-Texturkoordinaten und Y-Texturkoordinaten sowie die $Adr$-Werte beider Vertices einer Kante.
+Wenn die Summe $-6$ ergibt, sind alle diese Bedingungen erfüllt, bei $-5$ oder mehr nicht.
+Weiterhin muss getestet werden, ob maximal zwei gemeinsame Nachbarn vorliegen, damit die Mannigfaltigkeit des Meshs erhalten bleibt.
+Dazu werden erst für einen Vertex der Kante alle Nachbarn markiert (per $Flag$ bzw. $Flag'$).
+Dann werden vom anderen Vertex aus alle entsprechenden Markierungen in der Nachbarschaft gezählt.
+Diese Zahl ist die Anzahl der gemeinsamen Nachbarn.
+Die Laufzeitkomplexität dieser Tests ist linear in der Anzahl der geprüften Vertices,
+bei einem trivialen Test aller Nachbarschaftspaare wäre diese quadratisch.
+
+Wenn auch dieser Test positiv verläuft, so wird die Kante kontrahiert.
+Als Position des neuen Vertex wird die Mitte der Kante verwendet.
+Die Texturkoordinaten bleiben identisch zu denen der Ausgangsvertices und entsprechen somit $(-1,-1)$.
+Nachdem alle möglichen Kontraktionen durchgeführt wurden, werden alle nicht kontrahierten Vertices für den neuen Mesh übernommen.
+Danach werden alle diejenigen Dreiecke, die nicht zu Linien oder Punkten degeneriert wurden, ebenfalls übernommen.
+
+\ \\
+Nach dem Durchlauf des Algorithmus müssen die Normalen berechnet werden.
+Dazu wird das Verfahren aus \ref{KK_VoxelNormalen} verwendet.
+Allerdings bleiben die Normalen der Grenzvertices unverändert, da diese für die Meshes aller Detailstufen gleich bleiben müssen.
+
+Die Anzahl der Dreiecke der Höhlenmeshes liegen konstruktionsbedingt in $\mathcal O(n)$, mit $n$ als Anzahl der Vertices des Meshs.
+Der Algorithmus besitzt inklusive des Aufbaus der Adjazenzliste
+und Berechnung der Normalen somit eine Laufzeitkomplexität von $\mathcal O(g\cdot n)$, mit $g$ als maximalem Knotengrad je Vertex.
+Der Faktor $g$ resultiert aus der Prüfung auf mehrfache Nachbarn.
+%
+In Abbildung \ref{B_LODH1} und \ref{B_LODH2} sind Ergebnisse des Verfahrens gezeigt.
+%In jeder Reduktionsstufe wird die Anzahl der Dreiecke und Vertices nahezu halbiert.
+In der ersten Reduktionsstufe wird die Anzahl der Dreiecke und Vertices nahezu halbiert.
+Der Reduktionsfaktor sinkt in den folgenden Reduktionsstufen langsam ab,
+da die nicht kontrahierten Grenz- und Gangöffnungsvertices einen immer höheren Anteil an der Gesamtmenge der Vertices einnehmen.
+
+\ \\
+Zu den Problemen des Verfahrens gehört das verstärkte Hervortreten der Meshgrenzen mit steigenden Reduktionsstufen,
+da diese keiner Reduktion unterliegen.
+Weiterhin kann es, falls keine Filterung schwebender Fragmente durchgeführt wurde, dazu kommen,
+dass kleinere solcher Fragmente zu Tetraedern kollabieren.
+Diese werden im nächsten Reduktionsschritt zu zwei aufeinanderliegenden Dreiecken kontrahiert
+und verschwinden im Schritt darauf vollständig.
+Für diesen Sonderfall ist die Topologieerhaltung lokal nicht gewährleistet.
+%
+Ebenfalls kann es bei sehr vielen Reduktionsstufen zu einer starken Verformung des Höhlenmeshs kommen.
+Räume und Gänge, die an vielen Seiten von der Höhle umschlossen sind, können so möglicherweise mit dieser kollidieren.
+Im Allgemeinen wird die Anzahl der Reduktionsstufen jedoch nicht so hoch sein, dass dieser Fall auftritt.
+Das größte Problem stellen Mesh Foldover dar.
+
+\subsubsection{Mesh Foldover}
+
+Mesh Foldover werden in \cite[S.22]{B_LoD3D} beschrieben und stellen das Ineinanderschieben benachbarter Dreiecke dar.
+Dies kann bei den Reduktionsoperatoren Edge Collapse, Vertex-Pair Collapse und Triangle Collapse auftreten.
+\cite{B_LoD3D} beschreibt die folgende Methode zur Verhinderung:
+Es wird getestet, ob es Normalen mit mehr als $90^\circ$ Änderung durch den Collapse gibt.
+Wenn ja, dann liegt ein potentieller Foldover vor und der Collapse wird nicht durchgeführt.
+Allerdings ist dies kein generelles Kriterium.
+\cite{A_SimplificationTokyo} berichtet von einem günstigen Grenzwert, der für diese Normalenänderung gefunden werden muss.
+Dort wird $\frac{\pi}{3}$ verwendet.
+%!!!BILDSKIZZE Hefter  Do 19.04.2012 bei jedem Grenzwert möglich
+
+Bei relativ gleichmäßigen Meshes mit eher lokal flachen Oberflächen funktioniert diese Methode des Foldover-Verhinderns recht gut.
+Ein Foldover ist hier i.d.R. mit hohen Normalenänderungen verbunden, da das entsprechende Dreieck "`umklappt"'.
+Bei stark unebenen, zerklüfteten Meshes kann aber eine kleine Normalenänderung schon einen Foldover bedeuten.
+Dies ist in Abbildung \ref{B_Foldover} dargestellt.
+
+%Hier auch das Problem des Höhlenmeshes: das Verwackeln ist mittels Clamping gerade so abgeschwächt,
+%das hier gerade so keine Konflikte auftreten -> kleine Änderungen können schon Foldovers bedeuten.
+%!!!Bild Meshfoldover prinzipiell immer möglich, siehe Hefter 13.11.2011 ???
+
+\ \\
+Das Problem ist: Wenn der Grenzwert zu niedrig ist, werden kaum Reduktionsoperationen durchgeführt.
+Wenn er zu hoch liegt, entstehen Mesh Foldover.
+Im schlimmsten Fall können mit dieser Methodik keine Reduktionsoperationen durchgeführt werden, ohne dass es zu Mesh Foldovern kommt,
+und zwar in dem Fall, wenn die Operation mit der niedrigsten Normalenänderung schon einen Mesh Foldover bewirkt.
+
+Eine sichere Methode diese Foldover zu verhindern, besteht darin, alle durch die Kontraktion betroffenen Dreiecke zu testen, ob sie danach andere Dreiecke
+schneiden würden. Dies hätte aber beträchtlichen Rechenaufwand zur Folge.
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=14cm]{Bilder/MeshFoldover}
+	\caption[Mesh Foldover]{\emph{Mesh Foldover}: v.l.n.r. \\
+	 (a) Gezeigt ist die Ausgangstriangulation. Die zu kontrahierende Kante ist rot dargestellt.\\
+	 (b) Nach dem Edge Collapse gibt es einen Konflikt zwischen dem roten und blauen Dreieck.
+	 Die Normale des blauen Dreiecks wurde durch den Collapse nicht verändert, die des roten Dreiecks deutlich unter $90^\circ$.
+	 Durch horizontale Kontraktion der Skizze lassen sich Fälle mit Mesh Foldover bei beliebig kleiner Normalenänderung erzeugen.}
+	 \label{B_Foldover}
+\end{figure}
+
+%Mesh-Foldovers können auch bei Vertex Decimation-Algorithmen auftreten. Siehe mesh\_simplification\_slides.pdf
+%(da Vertex Removal wie Edge Collapse betrachtbar, bei bestimmten Triangulationen)
+\ \\
+Durch solche Foldover kommt es oft zu starken Beleuchtungsunterschieden.
+Bei der Verwendung von zweidimensionalen Texturen kommt es ebenfalls zu Texturunterschieden, bei dreidimensionalen Texturen nicht.
+Foldover können bei bestimmten Höhlenfarben und -texturierungen (speziell: Eis) vom Betrachter als weitere kristalline Strukturen wahrgenommen werden.
+
+Mesh Foldover entstehen insbesondere bei sehr stark zerklüfteten Meshes, d.h. bei Verwendung von Erosion,
+und nach mehreren Reduktionsstufen, da sich der Fehler aufsummiert.
+Da die stark reduzierten Reduktionsstufen i.d.R. in größerer Entfernung angezeigt werden, ist das Problem dadurch etwas abgemindert.
+In Abbildung \ref{B_LODH2}(b) sind solche Foldover an den lokalen Beleuchtungsunterschieden gut erkennbar.
+
+%Dennoch wäre es wünschenswert diese Foldover zu verhindern.
+%Möglichkeit zur Verringerung der Foldovers bei erwünschter Erosion: hohe Detailstufen mit Erosion, niedrige ohne Erosion erstellen.
+%!!!"'Foldover"' mit nicht adjazenzten Dreiecken (siehe Hefter 13.11.2011)
+
+% Weitere Probleme
+%\subsubsection{Weitere Probleme}
+%Enstehung weiterer degenerierter Dreiecke wie Linien, trotzdem mit unterscheidlichen Eckpunkten
+%Einzelstehende Voxel können zu Tetraedern mutieren, diese dann zu zwei aufeinanderdliegenden Dreiecken durch den Kollaps einer
+%Bei zunehmenden Reduktionsstufen treten die Ränder der Meshbuffer hervor, da deren Kanten nicht kollabiert werden.
+
+%Als Sonderfall können durch einzelne bzgl. 18er-Nachbarschaft freistehende 0-Voxel Strukturen entstehen, die nach und nach zu Tetraedern kollabieren.
+%Diese würden zu zwei aufeinanderliegenden Dreiecken mutieren, falls eine weitere Kante kontrahiert wird.
+%Um dies zu verhindern, wird zusätzlich ein Test durchgeführt, ob beide gemeinsamen Nachbarvertices der Kanteneckpunkte zueinander benachbart sind.
+

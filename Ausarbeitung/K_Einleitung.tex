@@ -1,0 +1,202 @@
+\pagenumbering{arabic}
+
+\chapter{Einleitung}
+
+%1. Bedeutung Computerspiele, 2. prozedurale Generierung, 3. Dungeons
+
+Diese Arbeit beschäftigt sich mit der prozeduralen Generierung von Dungeons, die als Spielwelten in Computerspielen verwendet werden können.
+Computerspiele stellen ein interaktives Unterhaltungsmedium dar, welches in den letzten Jahren massiv an Bedeutung gewonnen hat.
+Die entwickelten Spiele sind mitunter Großproduktionen, die in ihrem Budget und Aufwand mit Hollywood-Blockbustern vergleichbar sind.
+%Zahlen nennen mit !!!QUELLE
+Herausforderungen bei der Entwicklung von Computerspielen sind unter anderem: die Einhaltung des Budgets,
+die Erstellung von vielen Spielinhalten und das Einhalten von Speicherplatzbeschränkungen.
+Diese Punkte stehen allerdings im Widerspruch zueinander.
+
+Dieser Widerspruch kann durch den Einsatz prozeduralen Generierungsmethoden entspannt werden.
+Mittels entsprechender Algorithmen lassen sich hiermit aus wenigen Eingabeparametern komplexe Inhalte, wie beispielsweise Landschaften, erzeugen.
+Somit können Spielinhalte vergleichsweise schnell und einfach erstellt werden.
+Die Algorithmen werden mitunter direkt in Spiele integriert.
+Durch die Verwendung zufälliger Werte für ausgewählte Generierungsparameter kann bei jedem Start des Spiels eine neue Spielwelt erzeugt werden.
+Hierdurch wird für eine hohe Wiederspielbarkeit gesorgt.
+Methoden der prozeduralen Generierung erlauben es ebenfalls, große Mengen an Inhalten mit wenig Speicherverbrauch abzulegen,
+da nur die Generierungsparameter gespeichert werden müssen und nicht das Gesamtresultat.
+
+Dungeons, wörtlich übersetzt Verliese oder Kerker, stellen ein wichtiges Element in Computerspielen dar.
+Sie bestehen aus untereinander verbundenen Höhlen, Gängen und Räumen.
+Insbesondere in der sehr weit verbreiteten Gruppe der Rollenspiele bilden Dungeons oft den Hauptteil der Spielwelt.
+Bis vor einigen Jahren waren diese primär zweidimensional aufgebaut,
+jedoch gewinnen zunehmend dreidimensionale Strukturen an Bedeutung.
+Im Gegensatz zu zweidimensionalen Dungeons, für die es bereits viele Generierungswerkzeuge gibt,
+ist die Erstellung dreidimensionaler Dungeons deutlich weniger gut erforscht.
+
+%Ein wichtige Untergruppe der Computerspiele stellen Rollenspiele dar.
+%%meist in einem Fantasy-Setting angesiedelt
+%Die Erforschung und Bewältigung von Dungeons stellt hier oft den Hauptanteil des Spiels dar.
+%Dungeons, wörtlich übersetzt Verliese oder Kerker, bestehen aus einem Höhlensystem sowie damit verbundenen Gängen und Räumen.
+
+%Bis vor einigen Jahren waren diese primär zweidimensional aufgebaut.
+%Die prozedurale Generierung solcher 2D-Dungeons ist gut erforscht.
+%Zunehmend gewinnen jedoch dreidimensionale Strukturen an Bedeutung.
+%Dies erfordert Verfahren, um auch 3D-Dungeons prozedural generieren zu können.
+
+%Sie sind schon seit langem in Computerspielen zu finden. %!!!QUELLERogue
+%Im Gegensatz zu zweidimensionale Dungeons, für die es viele Generierungswerkzeuge gibt,
+%ist die Erstellung dreidimensionaler Dungeons deutlich weniger gut erforscht.
+%Es besteht also ein Bedarf an der prozeduralen Generierung dreidimensionaler Dungeons.
+
+%Dungeons, auch Höhlenverliese geannnt
+%
+%
+%Erklärung prozedurale Generierung (kurz),
+%Erklärung prozedurale Spielweltgenerierung,
+%Erklärung: Dungeon (kurz),
+%%incl. Bilder echter Höhlen, Gänge, Räume
+%Bedeutung für Computerspiele,
+%%
+%Warum diese Arbeit? 
+%- Prozeduralität spart Arbeit, größere Vielfalt möglich
+%- prozedurale 2D-Dungeons gut erforscht
+%-> prozedurale 3D-Dungeons
+%%
+%%\section{Motivation}
+%1)
+%- Spiele entwickeln teuer
+%- Verschiedene Bereiche: u.a. Spielinhalt - eng verknüpft mit Leveldesign, welches die Spielwelt aufbaut
+%- Kosten könne durch automatische Erstellung von Spielinhalten reduziert
+%%
+%2)
+%- Wiederspielbarkeit
+%- automatische Erzeugung von Spielinhalten mit Zufallsfaktoren
+%- dadurch hohe Anzahl verschiedener Level möglich
+%%
+%- Bedeutung von Dungeons in Computerspielen
+%- besonders wichtig in RPG's
+
+\section{Zielsetzung}
+
+Ziel der Arbeit ist es, ein Generierungsverfahren für realistische 3D-Dungeons zu entwickeln. 
+Zu diesen Dungeons gehören zerklüftete Höhlensysteme, gewundene Gänge und passend ausgestattete Räume.
+Schwerpunkt der Arbeit liegt auf der Generierung der Geometrien dieser Objekte sowie der passenden Platzierung und nahtlosen Verbindung aller Bestandteile.
+Die entwickelten Algorithmen sollen effizient bezüglich ihrer Laufzeit und des Speicherverbrauchs sein und konkret in einem Programm implementiert werden.
+%
+%
+%- LOD
+%- effiziente Algorithmen
+%- konkrete Imlempentierung
+%- Export
+%
+%-----
+%
+%Aufgabenstellung, Prozedurale Generierung von Dungeons (Dungeons (Höhlenverliese) erklären [QUELLE])
+%Schwerpunkt: prozedurale Geometrie (keine prozeduralen Texturen etc.)
+%
+%- 3D-Dungeons
+%- realistische, zerklüftete 3D-Höhlen-Systeme
+%- System von Gängen und Räumen, mit Höhle verbunden
+%- incl. Möglichkeit zum Platzieren von Detailobjekten
+%- exportierbar zur Nutzung in anderen Programmen (vorrangig Spiele, aber auch gängige 3D-Modelling-Programme)
+%- effiziente Algorithmen: Speicherbedarf nicht zu hoch, schnell -> praktikabel
+%
+%- Implementierung dieser Algorithmen -> Dungeongenerator-Programm
+%- um zu aufzuzeigen, ob diese auch in der Praxis funktionieren
+
+\section{Aufbau der Arbeit}
+
+Der Aufbau der Arbeit folgt, nach Betrachtung der Grundbegriffe \emph{Höhle}, \emph{Dungeon} und \emph{prozedurale Generierung} und Beispielen für diese,
+dem eigentlichen Generierungsprozesses des Dungeons.
+Dabei werden die jeweiligen Grundlagen in den Abschnitten erläutert, in denen diese Verwendung finden.
+Dies hat den Vorteil, dass gleich darauf Bezug genommen werden kann.
+
+\ \\
+\emph{Kapitel drei} beschreibt einige selbst entwickelte Herangehensweisen für die Dungeongenerierung, inklusive des finalen Ansatzes.
+Weiterhin werden wichtige Bemerkungen zur verwendeten Engine, dem Koordinatensystem, den Abstandsmaßen und dem Zufallsgenerator getroffen.
+Kapitel vier bis acht bilden den Kern der Arbeit und beschreiben die eigentlichen Schritte des Generierungsprozesses.
+
+\ \\
+\emph{Kapitel vier} erklärt die Erstellung von Voxelhöhlen auf der Basis von L-Systemen.
+Grundlagen hierfür sind die Konzepte Fraktal, L-System, Voxel und 3D-Bresenham-Linien-Algo"-rithmus.
+Basierend darauf wird ein Verfahren entwickelt, um Turtle-Grafiken im Voxelraum zu zeichnen.
+Weiterhin werden zwei Algorithmen zur Nachbearbeitung der Voxelgrafiken ausgearbeitet.
+
+\ \\
+\emph{Kapitel fünf} beschreibt die Umwandlung von Voxelgrafiken in Dreiecksnetze und deren Darstellung.
+Grundlagen hierfür sind die Konzepte Sweepverfahren, Octree, Normalenberechnung, 3D-Texturen
+und das Lambertsche Beleuchtungsmodell.
+Es werden Verfahren entwickelt, um diese Umwandlung durchzuführen, passende Koordinaten der Eckpunkte zu berechnen,
+Normalen von äquivalenten Eckpunkten an Meshgrenzen zusammenzufassen und das Dreiecksnetz zu beleuchten.
+
+\ \\
+\emph{Kapitel sechs} beschreibt die Erstellung von Gängen und Räumen.
+Grundlagen hierfür sind die Konzepte kubische Hermite-Splines, Bogenlänge und das Bisektionsverfahren.
+Es werden Algorithmen zur Erstellung polygonaler Schläuche und polygonaler Adapter hergeleitet,
+das Platzieren von Objekten entlang Kurven erläutert und das Konzept der Subszene definiert.
+
+\ \\
+\emph{Kapitel sieben} beschreibt die Platzierung und das Verbinden von Gängen und Räumen mit und um die Voxelhöhle herum.
+Grundlagen hierfür sind die Konzepte Bézierkurven und konvexe Hülle.
+Es werden Algorithmen entwickelt, um diese Platzierung vorzunehmen und die Objekte korrekt zu verbinden.
+
+\ \\
+\emph{Kapitel acht} beschreibt Techniken zur Reduzierung des Renderaufwandes.
+Grundlagen hierfür sind die Konzepte Culling, Level of Detail und die Reduktion von Dreiecksnetzen.
+Es wird ein Verfahren entwickelt, um einen Sichtbarkeitsgraphen aufzubauen und die Sichtbarkeitseigenschaften der generierten Objekte zu bestimmen.
+Weiterhin wird ein eigener Reduktionsalgorithmus für möglichst regelmäßige Meshes aufgezeigt.
+
+\ \\
+\emph{Kapitel neun} beschreibt den strukturellen Aufbau des entwickelten Generatorprogramms.
+In \emph{Kapitel zehn} werden Tests bezüglich verschiedener Generierungsparameter durchgeführt,
+eine Zusammenfassung gegeben und mögliche Punkte für weiterführende Arbeiten aufgeführt.
+
+
+%Erst Algorithmen incl. Zielsetzung und Beschreibung
+%später (in Auswertung): weitere Analyse des Einflusses verschiedener Parameter auf konkrete Resultate
+%
+%- Warum ist der Aufbau so?
+%  - der Pipeline folgend: erst Grundlagen, dann Weiterentwicklung und Anwendung
+%%- Wo sind theoretische Konzepte untergebracht?
+%%- Was war bisher?
+%%- Wo sind eigene Ansätze erarbeitet? -> eventuell in Kapitel "`Wertung"' oder "`Kurzüberblick"' als zusätzliches Kapitel der Einleitung
+%%- Was wurde weiterentwickelt?------
+%
+%%- Einleitung im ersten Kapitel, Begriffsklärung
+%- im zweiten Kapitel Begriff prozeduraler Generierung erklärt
+%und Beispiele aus Computerspielen, sowie anderen Programmen genannt mit Schwerpunkt Dungeons und Landschaften erläutert
+%
+%- im dritten Kapitel verschiedenen eigenentwickelten Ansätze der Dungeongenerierung erläutert, sowie die finale Pipeline erklärt
+%weiterhin Anmerkungen über die verwendete Irrlichengine und weitere Vorbemerkungen
+%
+%- danach folgen in Kapitel vier bis acht die Erläuterung der dem Dungeongenerator zugrundeliegenden Generierungsmethoden
+%- die Kapitel sind dabei thematisch am Ablauf der Pipeline orientiert
+%- verwendete bestehende Konzepte werden im jeweiligen Kapitel besprochen
+%- auf diesen Konzepten aufbauend werden die für diese Arbeit eigenen entwickelten Ansätze und Algorithmen beschrieben
+%
+%- Kapitel neun beschreibt den prinzipiellen Aufbau des entwickelten Generierungsprogramms unter Zuhilfenahme von UML
+%
+%- die Analyse des Einflusses verschiedener Parameter auf die Dungeongestaltung und die Performanz erfolgt in Kapitel zehn
+%ebenfalls wird dort eine Auswertung getroffen und ein Ausblick über mögliche Weiterentwicklungen gegeben
+
+\section{Voraussetzungen}
+
+Voraussetzung für das Verständnis der Arbeit
+sind fundierte Kenntnisse der Grundkonzepte der Informatik, wie dem binäre Zahlensystem und der Bedeutung der Landauschen Symbole.
+Ebenfalls Voraussetzung ist das Verständnis der Grundkonzepte der Computergrafik, wie Vektorrechnung und Dreiecksnetze,
+sowie gute Kenntnisse der Mathematik.
+Hilfreich sind weiterhin Kenntnisse in algorithmischer Geometrie, als auch vertiefte Kenntnisse der Computergrafik.
+
+
+\section{Ergebnisse in Kurzform}
+
+Es wurde eine Methode entwickelt, um dreidimensionale Dungeons generieren zu können.
+Es sind Generierungsverfahren für zerklüftete Höhlensysteme und gewundenen Gänge geschaffen worden.
+Für die Räume wurde ein Konzept überlegt, wie sich vordefinierte Szenen als Vorlagen für diese einbinden lassen.
+Der Realismusgrad der erzeugten Höhlen ließe sich durch passende prozedurale 3D-Texturen weiter steigern.
+
+Beim Entwurf der Algorithmen wurde darauf geachtet, dass diese möglichst auch für andere Zwecke eingesetzt werden können.
+Es ist möglich, L-Systeme und Turtle-Grafiken im Voxelraum darzustellen und daraus ein Dreiecksnetz inklusive Reduktionsstufen zu berechnen.
+Die Methode zur Erstellung polygonaler Schläuche entlang von Kurven sowie das Konzept der Adapter zum Anbinden an andere Geometrien erlauben ebenfalls weitere Einsatzmöglichkeiten.
+Die entwickelten Verfahren sind effizient, zumeist handelt es sich um Linearzeitalgorithmen.
+
+Sie wurden sowohl in einem Programm implementiert als auch getestet.
+Die Ergebnisse sind visuell ansprechend und die Generierungsmethoden auch in der Praxis effektiv.
+% und unter Nutzung passender Texturierung für die Verwendung in Computerspielen geeignet.
+Für die Erstellung eines kompletten Dungeons wird auf handelsüblichen PCs weniger als eine Minute Rechenzeit benötigt.

@@ -1,0 +1,824 @@
+\chapter{Erstellung der Höhle im Voxelraum}
+
+Das Grundgedanke der Höhlenerstellung beruht darauf, dass eine (zufällige) fraktalähnliche Grundstruktur,
+chaotisch, aber trotzdem mit einer inhärenten Ordnung, durch das Zeichnen von Strichen mit einem bestimmten Radius so überlagert wird,
+dass eine Höhlenstruktur entsteht.
+Zuerst erfolgt hierzu die Erstellung einer Höhlenstruktur-Beschreibung mittels eines L-Systems.
+Diese Höhle wird dann im Voxelraum gezeichnet und danach nachbearbeitet, um sie realistischer zu gestalten.
+
+%================================================================================================
+\section{Generierung von Lindenmayer-System-Fraktalen}
+\label{K_GenLsys}
+
+Der Begriff \emph{Fraktal} wurde von Benoît B. Mandelbrot entscheidend geprägt.
+Besonders hervorzuheben ist hier sein Werk "`Die fraktale Geometrie der Natur"' \cite{B_Mandelbrot},
+auf welchem die folgende Erklärung des Fraktalbegriffes basiert.
+
+Um Fraktale zu definieren, benötigt man den Begriff der \emph{Dimension}.
+Die \emph{topologische Dimension} stellt stets eine ganze Zahl dar.
+Für Kurven ist sie gleich $1$, für Flächen gleich $2$ und für Körper gleich $3$.
+Es gibt verschiedene allgemeinere Charakterisierungen der topologischen Dimension,
+eine gebräuchliche davon ist die Lebesgue'sche Überdeckungsdimension.
+
+% !!!QUELLE für Def. der Lebesgue'sche Überdeckungsdimension
+%bedeckt man ein Objekt mit Kugel des Radius $\epsilon$, wobei $\epsilon$ beliebig klein, aber nicht $0$ sein darf,
+%so liegt ein beliebiger Punkt des Objektes mindestens zwischen $N$ Kugeln
+%http://analysis.math.uni-kiel.de/lasse/DSA/Vortraege/node3.html
+
+Nach \cite[S.49]{B_Mandelbrot} kann für selbstähnliche Figuren die \emph{Hausdorff-Besicovitch-Dimension}
+mittels der \emph{Ähnlichkeitsdimension} abgeschätzt werden.
+Diese sind für solche Fälle oftmals identisch, wobei die Ähnlichkeitsdimension einfacher zu ermitteln ist.
+Die Hausdorff-Besicovitch-Dimension sowie die Ähnlichkeitsdimension sind grundsätzlich mindestens so groß wie die topologische Dimension.
+
+Kann eine Figur in $N$ Teile aufgespalten werden und diese Teile mittels einer Ähnlichkeitsabbildung mit dem Quotienten $r$
+wieder dem Original entsprechen, so hat diese Figur die Ähnlichkeitsdimension $D$, wobei gilt:
+
+\begin{equation}
+ \begin{aligned}
+ \label{F_DimAehnlichkeit}
+		D = -\frac{\log N}{\log r}
+	\end{aligned}
+\end{equation}
+
+\ \\
+Ein Beispiel für eine solche Figur ist die Koch-Kurve, deren Konstruktion in Abbildung \ref{B_Kochkurve} dargestellt wird.
+Die Erstellung beginnt mit dem \emph{Initiator}.
+Nun wird in jeder Iteration jede Strecke der vorhergehenden Iteration durch den \emph{Generator} ersetzt.
+Der Generator besteht im Fall der Koch-Kurve aus vier Strecken, die gegenüber der zu ersetzenden Strecke um ein Drittel verkleinert wurden,
+%Diese Strecken bilden einen Streckenzug mit den Winkeln $60^\circ, -120^\circ, 60^\circ$ in den Verbindungspunkten.
+und hat die Form der ersten Ite\-ra\-ti\-on aus Abbildung \ref{B_Kochkurve}.
+Die eigentliche Koch-Kurve entsteht nach unendlich vielen solchen Iterationen.
+Als Ähnlichkeitsdimension der Kurve ergibt sich $D = -\log 4 / \log \frac{1}{3} \approx 1,26$.
+Es gibt eine Vielzahl weiterer solcher mittels Generatoren konstruierten selbstähnlichen Kurven.
+
+\begin{figure}[htbp]
+  \centering  % trim: links unten rechts oben
+	\includegraphics[width=14.5cm]{Bilder/koch}
+	\caption[Konstruktion der Koch-Kurve]{Konstruktion der Koch-Kurve \cite{W_Quadsoft}}
+	\label{B_Kochkurve}
+\end{figure}
+
+%\ \\
+Mit den Dimensionsbegriffen kann nun der Begriff des Fraktals definiert werden.
+Die exakte Definition nach \cite[S.27]{B_Mandelbrot} ist in Definition \ref{D_Fraktal} wiedergegeben.
+Die Koch-Kurve ist somit ein Fraktal.
+
+\begin{TheoremDefinition}[Fraktal]
+    Ein Fraktal ist eine Menge, deren Hausdorff-Besicovitch-Dimen"-sion echt die topologische Dimension übersteigt.
+  \label{D_Fraktal}
+\end{TheoremDefinition}
+
+%!!!BILDER: Mandelbrotmenge, 3D-Fraktal (Julia Menge?)
+%================================================================================================
+\subsection{Lindenmayer-Systeme}
+\label{KK_Lindenmayer-Systeme}
+
+Lindenmayer-Systeme, oder auch \emph{L-Systeme} genannt, wurden vom Biologen Aristid Lindenmayer entwickelt.
+Die Erläuterung der L-Systeme folgt in dieser Ausarbeitung im Wesentlichen den Ausführungen von \cite{B_AlgBoP},
+wo diese zur Generierung von Pflanzenstrukturen angewendet werden.
+
+Ein L-System stellt eine Grammatik dar, bei der im Gegensatz zu formalen Chomsky-Gram"-matiken,
+die Ersetzungsregeln (Produktionen) gleichzeitig auf ein ganzes Wort angewendet werden, statt sequentiell.
+Ein kontextfreies L-System (OL-System) wird nach \cite[S.4]{B_AlgBoP} durch die Definitionen \ref{D_L-System} und \ref{D_L-SystemAbl} beschrieben.
+In dieser Arbeit finden ausschließlich deterministische kontextfreie L-Systeme Anwendung.
+Die Ableitung der Länge $n$ von $\omega$ sei auch als $n$-te Iteration des L-Systems bezeichnet.
+
+\begin{TheoremDefinition}[Kontextfreies L-System]
+    Sei $V$ ein Alphabet, $V^*$ die Menge aller Wörter über $V$ und $V^+$ die Menge aller nichtleeren Wörter über $V$.
+    Ein OL-System ist ein geordnetes Tripel $G=\left\langle V,\omega,P\right\rangle$,
+    wobei $V$ das Alphabet des Systems sei, $\omega \in V^+$ ein nichtleeres Wort, welches Axiom genannt wird,
+    und $P\subset V\times V^*$ eine endliche Menge an Produktionen.
+    Eine Produktion $(a,x) \in P$ wird geschrieben als $a \rightarrow x$.
+    Das Zeichen $a$ heißt Predecessor und das Wort $x$ Successor dieser Produktion.
+    Für jedes Zeichnen $a \in V$ soll mindestens ein Wort $x \in V^*$ existieren, mit $a \rightarrow x$.
+    Wenn für einen Predessecor $a \in V$ keine Produktion angegeben ist, so wird angenommen, dass die Produktion $a \rightarrow a$ existiert.
+    Ein OL-System ist deterministisch gdw. für jedes $a \in V$ genau ein Wort $x \in V^*$ mit $a \rightarrow x$ existiert.    
+  \label{D_L-System}
+\end{TheoremDefinition}
+
+\begin{TheoremDefinition}[Ableitungen von $\omega$]
+	Sei $\mu = a_1 \cdots a_m$ ein beliebiges Wort über $V$.
+	Das Wort $\nu = x_1 \cdots x_m \in V^*$ ist direkt abgeleitet von $\mu$, notiert als $\mu \Rightarrow \nu$,
+	gdw. $\forall i = 1,...,m: \exists\ a_i \rightarrow x_i$.
+	Ein Wort $\nu$ wird durch $G$ in einer Ableitung der Länge $n$ generiert, wenn es eine
+	Entwicklungssequenz von Wörtern $\mu_0,\mu_1,\cdots,\mu_n$ gibt, so dass
+	$\mu_0 = \omega$, $\mu_n = \nu$ und $\mu_0 \Rightarrow \mu_1 \Rightarrow \cdots \Rightarrow \mu_n$.	
+  \label{D_L-SystemAbl}
+\end{TheoremDefinition}
+
+%Wörter mit einer Ableitung der Länge $n$ seien auch als \emph{$n$-te Iteration} oder \emph{Iterationsstufe $n$} des L-Systems bezeichnet.
+%und das Axiom als \emph{Startwort} bezeichnet. !!!PRÜFEN ob Bezeichner verwendet werden
+
+Die Symbole der L-Systeme können nach \cite[S.6]{B_AlgBoP} als Turtle-Grafik-Zeichen"-anweisungen interpretiert werden.
+Dabei stellen die Zeichen des Alphabets die einzelne Anweisungen für die "`Turtle"' dar.
+Eine Folge dieser Anweisungen, notiert durch eine Ableitung von $\omega$, wird nacheinander Zeichen für Zeichen abgearbeitet, wodurch die eigentliche Grafik entsteht.
+Die gebräuchlichsten Symbole und ihre Interpretationen sind beispielsweise in \cite{B_AlgBoP}, \cite{B_LindSys} und \cite{B_GraDV2} beschrieben.
+Tabelle \ref{T_Zeichenanweiungen} zeigt die in dieser Arbeit verwendeten Befehle auf,
+wobei jeweils das Symbol nach \cite[S.209]{B_AlgBoP} angeben ist und das Symbol, welches im Generatorprogramm genutzt wird.
+Die Abänderung erfolgt zur Vermeidung von XML-Sonderzeichen, da die Daten u.a. als XML-Dateien gespeichert werden.
+Symbol '$\$$' wurde in seiner Interpretation modifiziert, um eine Möglichkeit zu haben, die Turtle horizontal auszurichten
+und so einfacher ebene, begehbare Segmente innerhalb von Höhlen schaffen zu können.
+Für die Tabelle seien folgende Festlegungen getroffen:
+die "`Turtle"' habe die Eigenschaften: lokales Koordinatensystem $\zeta_{lok}$, mit den Achsen $\vv{Vorn}$, $\vv{Oben}$, $\vv{Links}$ und der Position $\vv{P}$,
+sowie den Radius $r$.
+Die Winkel $\alpha_{Gier}$, $\alpha_{Nick}$ und $\alpha_{Roll}$ seien als zusätzliche Parameter gegeben.
+
+Weitere Zeichen mit anderen Interpretationen sind prinzipiell beliebig möglich.
+Ein vielfach erwähntes, aber nicht verwendetes Symbol ist für das Vorwärtsbewegen ohne zu Zeichnen zuständig.
+Hierauf wurde verzichtet, damit die entstehenden Strukturen in jedem Fall zusammenhängend sind.
+Alle nicht interpretierbaren Symbole werden beim Zeichnen grundsätzlich ignoriert,
+können aber zur Schaffung von Ersetzungsregeln verwendet werden.
+
+\ \\
+Das generelle Konzept der L-Systeme ist das fortlaufende iterative Ersetzen von Objektteilen mittels einer Menge von Ersetzungsregeln, ausgehend von einem Initialobjekt.
+Ein Beispiel dafür ist die oben beschriebene Koch-Kurve, die ebenfalls durch solche Ersetzungen generiert wird.
+Diese lässt sich über das L-System \\ $G=\left\langle \{F,+,-\},F,\{F\rightarrow F+F--F+F\} \right\rangle$ mit $\alpha_{Gier} = 60^\circ$ beschreiben.
+In jeder neuen Ableitung wird die Strichlänge auf $\frac{1}{3}$ der Strichlänge der vorherigen Ableitung gesetzt.
+
+Bei über Generatoren erstellten Fraktalen können die Ersetzungen mittels entsprechender Produktionsregeln dargestellt werden.
+Mittels entsprechender L-Systeme lassen sich also Fraktale beschreiben, wobei aber nicht jedes L-System zwangsläufig ein solches definiert.
+
+% Kochsche Schneeflocke ist nicht selbstähnlich, aber trotzdem Fraktal!
+%-> selbstähnliche mittels L-Systemen
+%!!!Anpassung in Zeichenbereich sonst kein Fraktal!!!?
+
+\begin{table}
+\centering
+\begin{tabular}[hc]{|c|c|c|c|}
+  \hline
+  Symbol & Verwendet & Interpretation\\
+  \hline\hline
+  $F$ & $F$ & Bewege vorwärts und zeichne Strich mit Radius $r$\\
+
+  $+$ & $+$ &Drehe um $\vv{Oben}$ um $\alpha_{Gier}$ (nach links)\\
+  $-$ & $-$ &Drehe um $\vv{Oben}$ um $-\alpha_{Gier}$ (nach rechts)\\
+  \^{ } & $o$ &Drehe um $\vv{Links}$ um $-\alpha_{Nick}$ (nach oben)\\
+  $\&$ & $u$ &Drehe um $\vv{Links}$ um $\alpha_{Nick}$ (nach unten)\\
+  $\backslash$& $g$  &Drehe um $\vv{Vorn}$ um $-\alpha_{Roll}$ (gegen UZS, nach vorn blickend)\\
+  $/$ & $z$ &Drehe um $\vv{Vorn}$ um $\alpha_{Roll}$ (im UZS, nach vorn blickend)\\
+  $|$ & $|$ &Drehe um $\vv{Oben}$ um $180^\circ$\\
+  $\$$ & $\$$ &Drehe die Turtle so, dass $\vv{Oben}$ gleich $(0,1,0)$ ist \\
+      &      &(In \cite{B_AlgBoP}: so rotieren, dass $\vv{Links}$ senkrecht zu $(0,1,0)$)\\
+  $[$ & $[$ &Speichere $\zeta_{lok}$, $\vv{P}$ und $r$ auf dem Stack \\
+  $]$ & $]$ &Lade $\zeta_{lok}$, $\vv{P}$ und $r$ vom Stack \\
+  $!$ & $!$ &Reduziere Radius $r$ \\
+  \hline
+\end{tabular}
+\caption{Symbole für Turtle-Grafik-Zeichenanweisungen}
+ {v.l.n.r: Symbol nach \cite{B_AlgBoP}, Symbol in dieser Arbeit, Interpretation des Symbols}
+ \label{T_Zeichenanweiungen}
+\end{table}
+
+
+%- !!!Erklärung: L-Systeme
+%- Erklärung der verwendeten Grammatik
+%- Erklärung des Prinzips der Generatoren im Kontext der L-Systeme
+%- Fortführung des Beispiels der Kochkurve, nun als L-System
+%- mögliche Befehle
+%- verwendete Befehle (Begründung)
+%- Art der verwendeten L-Systems (kontextfrei,...)
+%================================================================================================
+\subsection{Fraktalgenerator}
+
+Der Fraktalgenerator ist ein Generierungsbaustein des Dungeongenerator-Programms, welcher
+dazu dient, zufällige L-Systeme zu erstellen sowie Turtle-Grafik-Zeichenanweisungen
+aus gegebenen L-Systemen zu generieren.
+Zum einen lassen sich Parameter, wie die Winkel $\alpha_{Gier}$, $\alpha_{Nick}$ ,$\alpha_{Roll}$,
+zufällig bestimmen, zum anderen können ein zufälliges Axiom sowie zufällige Produktionen für gegebene Symbole
+erzeugt werden.
+
+Für die Generierung einer Folge von Zeichenanweisungen werden ein L-System und die gewünschte Länge der Ableitung $n$ benötigt.
+Ausgehend vom Axiom als Startstring wird nun iteriert.
+In jeder Iterationsstufe wird ein neuer String erzeugt, in dem über den alten String gelaufen wird 
+und die Ersetzungen mittels der Produktionen vorgenommen werden.
+Diese Iterationen werden insgesamt $n$ mal durchgeführt.
+Die resultierende Folge von Zeichenanweisungen ist der zuletzt erzeugte String.
+
+Anmerkung:
+Diese Zeichenanweisungen erzeugen auch im Fall von fraktalbeschreibenden L-Systemen keine echten Fraktale,
+da die Ableitungsfolge nicht unendlich lang ist.\footnote{Solche unendlich langen Ableitungsfolgen lassen sich verständlicherweise nicht generieren.}
+Die resultierenden Strukturen sind aber i.d.R. fraktalähnlich, ähneln also in ihrer Form echten Fraktalen.
+%Diese Fraktalähnlichkeit sei hierbei durch Formen definiert, die scheinen als ob sie eine höhere Dimension haben als tatsächlich vorliegt.
+%Dies ist durch an den Rändern s
+
+%================================================================================================
+\section{Turtle-Grafik im Voxelraum}
+\label{K_TurtleVoxel}
+
+Der Fraktalgenerator liefert Turtle-Grafik-Zeichenanweisungen, die nun im 3D-Raum gezeichnet werden müssen.
+Als Grundlage für den 3D-Raum werden Voxel verwendet.
+\emph{Voxel} ("`volume element"') bilden das dreidimensionale Äquivalent zu den zweidimensionalen Pixeln ("`picture element"').
+Der Voxelraum ist nach \cite[S.549]{B_Foley} per gleichmäßigem Gitter in kleine identische Zellen aufgeteilt, die meistens kubischer Form sind.
+Jede dieser Zellen stellt einen Voxel dar.
+Abbildung \ref{B_Voxeltorus} zeigt einen aus Voxeln aufgebauten Torus.
+
+Die in dieser Arbeit verwendeten Voxel sollen ausschließlich kubischer Natur sein.
+Die Schreibweise $Voxel(x,y,z)$ bezeichne die Belegung des Voxels an Position $(x,y,z)$ mit $x,y,z \in \mathds{N}_0$.
+Der Voxelraum soll den Bereich aller Voxel in $[0,X_{vmax}] \times [0,Y_{vmax}]\times [0,Z_{vmax}]$ umfassen.
+
+%Def. Voxel: "`volumetric pixel"' Datenpunkt einer dreidimensionalen Rastergrafik
+%- Würfel im Raum, im folgenden sei die Kantenlänge eines Voxels mit 1 festgesetzt
+
+Über den Manhattenabstand (siehe Formel \ref{F_AbstandManhatten}) lassen sich verschiedene Nachbarschaftsbeziehungen zwischen Voxeln definieren.
+Diese sind dabei an die gebräuchlichen Begriffe 4er-Nachbarschaft und 8er-Nachbarschaft aus der Bildverarbeitung angelehnt (vgl. \cite[S.173-174]{B_DigBildv}),
+die sich auf den zweidimensionalen Pixelraum beziehen.
+%!!!TODO: Vierer, Sechser etc. (ausschreiben, Abküzungen angeben)
+
+\begin{TheoremDefinition}[6er-Nachbarschaft]
+    Bezüglich eines Voxel an Position $\vv{a}$ liegt ein Voxel an Position $\vv{b}$ in 6er-Nachbarschaft, wenn gilt:
+    $D_{m}(\vv{a},\vv{b}) =1$ und $D_{e}(\vv{a},\vv{b}) < 2$ .
+  \label{VoxelNachbarschaft6er}
+\end{TheoremDefinition}
+\begin{TheoremDefinition}[18er-Nachbarschaft]
+    Bezüglich eines Voxel an Position $\vv{a}$ liegt ein Voxel an Position $\vv{b}$ in 18er-Nachbarschaft, wenn gilt:
+    $1\leq D_{m}(\vv{a},\vv{b}) \leq 2$ und $D_{e}(\vv{a},\vv{b}) < 2$ .
+  \label{VoxelNachbarschaft18er}
+\end{TheoremDefinition}
+\begin{TheoremDefinition}[26er-Nachbarschaft]
+    Bezüglich eines Voxel an Position $\vv{a}$ liegt ein Voxel an Position $\vv{b}$ in 26er-Nachbarschaft, wenn gilt:
+     $1\leq D_{m}(\vv{a},\vv{b}) \leq 3$ und $D_{e}(\vv{a},\vv{b}) < 2$ .
+  \label{VoxelNachbarschaft26er}
+\end{TheoremDefinition}
+
+Für das Zeichnen der Höhle soll ein nicht gesetzter Voxel ($0$) äquivalent zu Felsgestein sein, welches gleichzeitig der Initialwert für alle Voxel ist.
+Ein gesetzter Voxel ($1$) bezeichnet den Freiraum der Höhle.
+Temporär sind andere Markierungen für bestimmte Algorithmen möglich, die entsprechend erwähnt werden.
+Bei der Implementierung wird die Größe des Voxelraums auf $512\times512\times512$ Einheiten festgelegt, welches $134.217.728$ Voxeln entspricht.
+Zur Speicherung wird ein Byte je Voxel verwendet, wodurch hierfür insgesamt $128$ MiB nötig sind.
+Da heutzutage oftmals mehrere GiB Arbeitspeicher vorhanden sind, ist dies problemlos umsetzbar.
+Der gesamte Voxelraum wird als 3D-Array abgelegt.
+
+Alternativ lässt sich ein Bit je Voxel mit acht Voxeln in einem Byte verwenden, wodurch für gleiche Voxelraum-Größe nur noch $16$ MiB Speicherplatz benötigt werden würden.
+Diese Speicherungsvariante kann für größere Voxelräume relevant sein, da bei Verdopplung der Kantenlänge des Voxelraums der Speicherverbrauch um das Achtfache steigt.
+Allerdings erfolgt der Zugriff auf einzelne Voxel hier per Binäroperatoren (binäres Und, binäres Oder), was unperformanter als der direkte Zugriff ist.
+Da für bestimmte verwendete Algorithmen andere Markierungen außer $0$ und $1$ nötig sind, ist hier ebenfalls weiterer Speicher nötig.
+
+\begin{figure}[htbp]
+  \centering  
+	\includegraphics[width=12cm]{Bilder/voxel-model}
+	\caption[Aus Voxeln aufgebauter Torus]{Aus Voxeln aufgebauter Torus \cite[S.549]{B_Foley}}
+	\label{B_Voxeltorus}
+\end{figure}
+
+%\ \\
+\noindent Die Turtle habe die in Kapitel \ref{KK_Lindenmayer-Systeme} genannten Eigenschaften.
+Für das Zeichnen der Turtle-Grafik seien weiterhin als Parameter gegeben:
+die Winkel $\alpha_{Gier}$, $\alpha_{Nick}$ ,$\alpha_{Roll}$, Radiusfaktor $r_f$ und Radiusdekrementor $r_d$.
+Der Stack für das Speichern der Turtle-Zustände sei initial leer.
+
+\subsection{Drehungen und Radiusänderungen}
+
+Für die Umsetzung der Rotationen (Symbole '$+$','$-$','$o$','$u$','$g$','$z$') sei gefordert,
+dass die Vektoren des lokalen Koordinatensystems immer senkrecht aufeinander stehen und immer die Länge $1$ besitzen.
+Dies erfordert auch bei vielen hintereinander ausgeführten Rotationen numerische Stabilität.
+Dazu erfolgt bei einer Drehung zuerst die Errechnung \emph{einer} neuen Achse des lokalen Koordinatensystems.
+Die Konstruktion der zweiten sich verändernden Achse erfolgt per Kreuzprodukt.
+In jedem Schritt wird der entsprechende Vektor normalisiert.\footnote{Bei absolut exakter Berechnung könnte das Normalisieren weggelassen werden.}
+Formel \ref{F_TurtleDrehung} gibt das Beispiel für die Drehung um Achse $\vv{Oben}$ mit Winkel $\alpha_{Gier}$ an.
+Die Achse $\vv{Oben}$ bleibt bei dieser Drehung unverändert, die beiden anderen Achsen werden wie angegeben modifiziert.
+
+\begin{equation}
+ \begin{aligned}
+ \label{F_TurtleDrehung}
+		\vv{Vorn_{neu}} =& \frac{\cos \alpha_{Gier} \cdot \vv{Vorn}+ \sin \alpha_{Gier} \cdot \vv{Links}}
+														{\left|\cos \alpha_{Gier} \cdot \vv{Vorn}+ \sin \alpha_{Gier} \cdot \vv{Links}\right|} \\
+		\vv{Links_{neu}} =& \frac{\vv{Vorn_{neu}} \times \vv{Oben}}{\left| \vv{Vorn_{neu}} \times \vv{Oben}\right|}
+ \end{aligned}
+\end{equation}
+
+\ \\
+Bei der Ausrichtung von $\vv{Oben}$ (Symbol '$\$$') nach $(0,1,0)$ erfolgt zuerst die Neubelegung von $\vv{Oben}$.
+Um die nachfolgende Berechnung numerisch stabil zu gestalten, wird nun bestimmt, welcher der beiden Vektoren $\vv{Vorn}$ oder $\vv{Links}$
+den höchsten Betrag des Skalarprodukts mit $\vv{Oben}$ aufweist, also möglichst weit senkrecht auf $\vv{Oben}$ steht.
+Der entsprechende Vektor sei Vektor $\vv{a}$, der andere Vektor $\vv{b}$.
+Vektor $\vv{a}$ wird nun für die Berechnung des neuen Werts für $\vv{b}$ verwendet, die durch die Bildung des Kreuzprodukts mit $\vv{Oben}$ erfolgt.
+Danach wird der neue Wert für $\vv{a}$ ebenfalls per Kreuzprodukt ermittelt.
+
+Für die Drehung um $180^\circ$ (Symbol '$|$') brauchen nur $\vv{Vorn}$ und $\vv{Links}$ mit $-1$ multipliziert zu werden.
+
+\ \\
+Die Reduzierung des Radius (Symbol '$!$') erfolgt nach Formel \ref{F_FrakRadius}.
+Ziel ist es eine pro\-zen\-tu\-ale (per $r_f$), als auch eine absolute (per $r_d$) Radiusreduzierung zu ermöglichen.
+Der Radius kann per Definition nicht kleiner als $0$ werden. In der Implementierung des Generator-Programms ist ein minimaler Radius von $1$ vorgesehen.
+Der Wert des Radius wird als Gleitkommazahl gespeichert und beim Zeichnen von Strichen auf eine ganze Zahl abgerundet.
+
+\begin{equation}
+ \begin{aligned}
+  \label{F_FrakRadius}
+		r_{neu} = r_f \cdot r - r_d
+ \end{aligned}
+\end{equation}
+
+%================================================================================================
+\subsection{Zeichnen von Strichen mit gegebenem Radius}
+
+Das Zeichen der Striche erfordert die Aktualisierung der Position. 
+Die neue Position berechnet sich wie in Formel \ref{F_FrakPos} angegeben.
+Die Strichlänge sei $L$.
+
+\begin{equation}
+ \begin{aligned}
+ \label{F_FrakPos}
+		\vv{P_{neu}} = \vv{P} + L \cdot \vv{Vorn}
+ \end{aligned}
+\end{equation}
+
+\ \\
+Weiterhin müssen die durch den Strich abgedeckten Voxel auf $1$ gesetzt werden.
+Der erste Ansatz bestand darin, die gesamte Turtle-Grafik zuerst mittels des 3D-Bresenham-Algorithmus
+nur mit Strichdicke $1$ zu zeichnen und dieses Skelett dann zur finalen Ausdehnung zu expandieren.
+Dazu wurde eine Prioritätswarteschlange als Datenstruktur für die expandierenden Voxel verwendet.
+Die Abarbeitungspriorität der Voxel entsprach \emph{(gewünschter Radius - aktueller Abstand vom Skelett)}.
+Problematisch war die Laufzeitkomplexität von $\mathcal O(n \log n)$, mit $n$ als Anzahl zu zeichnender Voxel, und dem hohen Speicherverbrauch pro Voxel.
+Diese Methode hatte bereits für einfache Turtle-Grafiken mit wenigen Strichen eine Laufzeit von mehreren Minuten.
+Im Vergleich dazu schaffte es der finale Bresenham-Zylinder-Kugel-Algorithmus diese Grafiken in weniger als einer Sekunde zu zeichnen.
+
+%- 2 Methoden werden betrachtet
+%- beide nutzen den für drei Dimensionen erweiterten Bresenham-Algorithmus
+%- in der erste Methode wird zuerst die Turtle-Grafik mit Strichdicke 1 gezeichnet und danach zu den passenden Strichdicken erweitert
+%  - hier wird kein Voxel mehrfach gezeichnet
+%- bei der zweiten und finalen Methode wird jeder Strich sofort mit der passenden Dicke gezeichnet
+%  - hier kommt es mit unter zu Überdeckungen von Strichen, d.h. Voxel werden mehrfach gezeichnet
+
+\subsubsection{Exkurs: Bresenham-Linien-Algorithmus in 3D}
+
+%!!!vollständiger: Bresenham-Linien-Algortihmus
+Der \emph{Bresenham-Linien-Algorithmus}, auch kurz Bresenham-Algorithmus oder Bresenham genannt, ist ein Algorithmus zum Zeichnen von Linien in zweidimensionalen Rastergrafiken,
+welcher 1965 von J. E. Bresenham in \cite{bresenham1965algorithm} vorgestellt wurde.
+Der Algorithmus ist sehr schnell, da er prinzipiell nur mit Additionen und Entscheidungen auskommt und ausschließlich ganze Zahlen verwendet.
+Damit stellt er quasi den Standardalgorithmus zum Zeichnen von Linien dar.
+%- Rundungsfehler die durch Verwendung kontinuierlicher Koordianten entstehen würden werden eliminiert
+
+Die Rasterung einer Linie von $(x_1,y_1)$ nach $(x_2,y_2)$, mit $dx\geq dy$ (wobei $dx=x_2-x_1$, $dy=y_2-y_1$), nach dem Bresenham-Algorithmus wird in Abbildung \ref{B_Bresenham} dargestellt.
+Zusätzliche Voraussetzungen sind $x_1\leq x_2$ und $y_1\leq y_2$. Für alle anderen Fälle wird der Algorithmus entsprechend angepasst.
+Begonnen wird in $(x_1,y_1)$. In jedem Zeichenschritt wird die Koordinate $x$ um $1$ erhöht.
+Für die Koordinate $y$ gibt es zwei Möglichkeiten: entweder wird sie so belassen oder es findet ebenfalls eine Erhöhung um $1$ statt.
+Die Idee besteht darin, dies anhand des Fehlers zu entscheiden, der entstehen würde,
+und dabei die Variante zu wählen, bei der der gezeichnete Pixel näher an der echten Linie liegt.
+Der Bresenham-Algorithmus führt hierzu eine Fehlervariable ein, anhand der entschieden wird.
+Diese Variable wird zusätzlich zur Positionsänderung je nach Entscheidung unterschiedlich aktualisiert.
+
+Diese Fehlervariable sei $e_y$. Falls $e_y\geq0$ wird die Y-Koordinate um $1$ erhöht, ansonsten so gelassen.
+In \cite{bresenham1965algorithm} wird gezeigt, dass wenn anfangs $e_y = 2\cdot dy-dx$ gesetzt wird,
+die nachfolgende Aktualisierung dem Prinzip aus Formel \ref{F_Bresen2D} genügen muss.
+
+\begin{equation}
+ \begin{aligned}
+  \label{F_Bresen2D}
+		e_y^{neu} = \begin{cases} 
+									e_y + 2\cdot dy- 2 \cdot dx & falls\ e_y\geq0 \\ 
+									e_y + 2\cdot dy & sonst 
+								\end{cases} 
+ \end{aligned}
+\end{equation}
+
+\begin{figure}[htbp]
+  \centering  
+	\includegraphics[width=14.5cm]{Bilder/BresenhamLine}
+	\caption[Rasterung einer Linie nach dem Bresenham-Verfahren]{Rasterung einer Linie nach dem Bresenham-Verfahren \cite{W_WikiBresen}}
+	\label{B_Bresenham}
+\end{figure}
+
+\ \\
+Der Bresenham-Algorithmus lässt sich auf dreidimensionale Rastergrafiken, also Voxelgrafiken, erweitern.
+In \cite{A_Bresen3D} wird diese 3D-Variante beschrieben.
+Algorithmus \ref{Bresenham3D} stellt eine leicht modifizierte Version dar, mit beliebiger Reihenfolge der Start- und Endpunkte.
+Dennoch muss gelten, dass $|dx|\geq |dy|$ und $|dx|\geq |dz|$, also ist $x$ die Primärkoordinate.
+Für die Anwendung auf alle Fälle wird eine Funktion vorgeschaltet,
+die den passenden Fall mit $x$, $y$ oder $z$ als Primärkoordinate bestimmt und daraufhin den entsprechend angepassten Algorithmus aufruft.
+Die Anpassung erfolgt durch den Rollentausch der Koordinaten $x$, $y$ und $z$.
+
+Der Unterschied zum originalen Bresenham-Algorithmus besteht darin, dass in jedem Zeichenschritt zusätzlich die Z-Koordinate modifiziert werden kann.
+Hierzu gibt es die Fehlervariable $e_z$, anhand der entschieden wird. Deren Aktualisierung findet äquivalent zu der von $e_y$ statt.
+
+\begin{algorithm}
+\caption{Bresenham-Linien-Algorithmus in 3D (C++ Listing)}
+\label{Bresenham3D}
+\algorithmicrequire{\textit{/*Endpunkte (mit X als längster Achse)*/}\\ int xs,int ys,int zs,int xe,int ye,int ze} \\
+\algorithmicensure{gezeichnete Linie}
+\begin{algorithmic}[1]	
+	\State \textit{/* Richtungen festlegen */}
+	\State \textbf{int} xinc = 1; \textbf{if}(xe<xs) xinc = -1;
+	\State \textbf{int} yinc = 1; \textbf{if}(ye<ys) yinc = -1;
+	\State \textbf{int} zinc = 1; \textbf{if}(ze<zs) zinc = -1;
+	\State \textit{/* Berechne die delta-Werte */}
+	\State \textbf{int} dx=\textbf{abs}(xe-xs); dy=\textbf{abs}(ye-ys); dz=\textbf{abs}(ze-zs);
+	\State \textit{/* Berechne die Initialwerte der Entscheidungsparameter */}
+	\State \textbf{int} ey=2*dy-dx; ez=2*dz-dx;
+	\State \textit{/* Berechne Konstanten */}
+	\State \textbf{int} twoDy=2*dy; twoDyDx=2*(dy-dx);
+	\State \textbf{int} twoDz=2*dz; twoDzDx=2*(dz-dx);
+	\State \textit{/* Setze Startposition */}
+	\State \textbf{int} x=xs; y=ys; z=zs;
+	\State \textit{/* Annahme: dx>=dy, dx>=dz */}
+	\State \textbf{for} (i=0; i<=dx; i++)
+	\State \{
+	\State \hspace{6mm}\textbf{output}(x,y,z); \textit{/* Zeichne die aktuelle Position*/}
+	\State \hspace{6mm}x+=xinc; \textit{/* Start der Berechnung der nächsten Koordinaten */}
+	\State \hspace{6mm}\textbf{if} (ey>=0) \{y+=yinc; ey+=twoDyDx;\}
+	\State \hspace{12mm}\textbf{else} ey+=twoDy;
+	\State \hspace{6mm}\textbf{if} (ez>=0) \{z+=zinc; ez+=twoDzDx;\}
+	\State \hspace{12mm}\textbf{else} ez+=twoDz; \textit{/* Ende der Berechnung der nächsten Koordinaten */}
+	\State \}	
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Kugel und Kreiszylinder}
+
+Die finale Methode zum Zeichnen von Strichen mit gewünschtem Radius $r$ im Voxelraum basiert auf dem Zeichnen von zwei grafischen Primitiven.
+Zuerst erfolgt das Zeichnen eines geraden Kreiszylinders mit Radius $r$.
+Danach wird eine abschließende Kugel mit gleichem Radius am Zylinderende gezeichnet, damit bei Drehungen nachfolgender Striche keine Spalten entstehen
+und eine weichere Überblendung bei Radiusreduzierungen erreicht wird.
+
+Der Algorithmus für die Kugel ist vergleichsweise einfach umzusetzen.
+Es erfolgt das Ablaufen des Würfels mit dem Mittelpunkt gleich dem Kugelmittelpunkt und der Seitenlänge gleich dem Kugeldurchmesser
+mittels einer dreifach geschachtelte Schleife, wobei jede Schachtelung für eine Dimension des Würfels zuständig ist.
+Im Inneren der Schleife wird für jeden Voxel ein Test durchgeführt, ob der Abstand vom Mittelpunkt der Kugel höchstens so groß wie der Radius der Kugel ist.
+Wenn dieser Test positiv verläuft, wird der Voxel gezeichnet, also auf $1$ gesetzt.
+Zur Optimierung werden bei allen Berechnungen und Tests quadratische Abstände verwendet
+und Rechenoperationen möglichst weit aus den Schleifenschachtelungen herausgezogen.
+
+\ \\
+Das lokale Koordinatensystem ist durch die Turtle bekannt, die Vektoren sind normiert.
+Die Idee des Kreiszylinder-Algorithmus ist es, diese Vektoren zu nutzen, um den Zylinder aufzuspannen.
+$\vv{Oben}$ und $\vv{Links}$ multipliziert mit dem Zylinderradius spannen die Grundfläche auf
+und die Zylinderachse verläuft von der Startposition zur Endposition des Striches,
+die beide ebenfalls bekannt sind.
+
+Das Aufspannen der Vektoren geschieht mittels des 3D-Bresenham-Algorithmus.
+Für jede der drei Achsen wird ein Bresenham verwendet, der in einen Buffer zeichnet, statt direkt in den Voxelraum.
+Danach wird eine dreifach geschachtelte Schleife durchlaufen, die jeweils über alle Buffer-Elemente läuft, die Koordinaten zusammenaddiert
+und ggf. den entsprechenden Voxel zeichnet, falls er wirklich im Zylinder liegt.
+Das Verfahren ist in Algorithmus \ref{VoxelZylinder} dargestellt.
+  
+Durch die Spiegelung eines Viertels der Zylindergrundfläche lässt sich die Zahl nötiger Tests reduzieren.
+Allerdings wird die ZeichneVoxel()-Routine an Positionen mit $\vv{P_{1}}$ oder $\vv{P_{2}}$ gleich dem Nullvektor doppelt
+und mit $\vv{P_{1}}$ und $\vv{P_{2}}$ gleich dem Nullvektor sogar vierfach ausgeführt.
+Dies ist aber bei größeren Zylinderradien vernachlässigbar,
+da der Anteil dieser Fälle im Verhältnis zur Gesamtvoxelzahl abnimmt.
+Ein Abfangen der Fälle vorm Zeichnen der Voxel ist i.d.R. nicht empfehlenswert,
+da bedingte Anweisungen vergleichsweise teure Operationen darstellen.
+
+\begin{algorithm}
+\caption{Gerader Kreiszylinder im Voxelraum}
+\label{VoxelZylinder}
+\algorithmicrequire{Radius $r$, Startpunkt $\vv{P_s}$, Endpunkt $\vv{P_e}$, Lokales Koordinatensystem}  \\
+\algorithmicensure{gezeichneter Zylinder}
+\begin{algorithmic}[1]
+
+	%\State \Comment {Deckflaeche vertikal}
+	\State $Buffer1 \gets Bresenham3D(\vv{0}, r\cdot\vv{Oben})$ \Comment {$\vv{0}$ bezeichnet Nullvektor}
+	\State $Buffer2 \gets Bresenham3D(\vv{0}, r\cdot\vv{Links})$ 
+	\State $Buffer3 \gets Bresenham3D(\vv{P_s}, \vv{P_e})$
+
+	\ForAll{$\vv{P_{1}} \in Buffer1$}
+		\ForAll{$\vv{P_{2}} \in Buffer2$}
+			\If{$(\vv{P_{1}}+\vv{P_{2}})^2 \leq r^2$}
+				\ForAll{$\vv{P_{3}} \in Buffer3$}				
+					\State $ZeichneVoxel(\vv{P_{3}}+\vv{P_{1}}+\vv{P_{2}})$
+					\State $ZeichneVoxel(\vv{P_{3}}-\vv{P_{1}}-\vv{P_{2}})$ \Comment {Spiegelung}
+					\State $ZeichneVoxel(\vv{P_{3}}+\vv{P_{1}}-\vv{P_{2}})$ \Comment {Spiegelung}
+					\State $ZeichneVoxel(\vv{P_{3}}-\vv{P_{1}}+\vv{P_{2}})$ \Comment {Spiegelung}
+				\EndFor				
+			\EndIf	
+		\EndFor
+	\EndFor
+
+\end{algorithmic}
+\end{algorithm}
+
+%\ \\
+\noindent Problematisch ist, dass es beim Anwenden von Algorithmus \ref{VoxelZylinder} unter der Verwendung einer ZeichneVoxel()-Routine,
+die genau einen Voxel an gegebener Position zeichnet, zur Lückenbildung im Zylinder kommen kann.
+Die Ursache liegt darin, dass der 3D-Bresenham-Algorithmus beim Zeichnen von Linien die 26er-Nachbarschaftsbeziehung verwendet,
+äquivalent zum 2D-Bresenham, der die 8er-Nachbarschaft nutzt.
+Abbildung \ref{B_Voxelluecken} zeigt die Entstehung von Lücken beim Zeichnen einer Fläche.
+Äquivalent kommt es bei der Kombination der 3D-Bresenhams zu einem volumetrischen Gebilde potentiell zu Lücken.
+Jede dieser Lücken besitzt aber grundsätzlich mindestens einen gesetzten Voxel in 6er-Nachbarschaft.
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=15cm]{Bilder/Voxelluecken}
+	\caption[Entstehung von Lücken beim Zeichnen des Zylinders]{\emph{Entstehung von Lücken beim Zeichnen des Zylinders}:
+	 betrachtet wird 2D-Fall: Fig. (a) und (b) zeigen Teilauschnitte einer Linie. Werden deren Punkte als Startpunkte neuer Linien verwendet,
+	 so können je nach Linienrichtung Lücken entstehen.}
+	 \label{B_Voxelluecken}
+\end{figure}
+
+Dadurch ergibt sich als mögliche Lösung, dass Voxelblöcke statt einzelner Voxel gezeichnet werden.
+Diese Blöcke sollten annähernd kugelförmig bezüglich eines Mittelpunktsvoxels sein, damit die Symmetrie des Zylinders gewahrt bleibt.
+Wenn man einen 6er-Nachbarschafts-Voxelblock zeichnet (Bezugsvoxel und alle Voxel in 6er-Nachbarschaft),
+so werden die Lücken innerhalb des Zylinders geschlossen.
+Allerdings können, wie in Abbildung \ref{B_Voxelluecken_Rand} zu sehen ist, noch Scharten am Rand des Zylinders auftreten.
+Diese können durch Verwendung von 18er-Nachbarschafts-Voxelblöcken eliminiert werden.
+Durch das Verwenden dieser Voxelblöcke muss der Parameter $r$ beim Aufruf von Algorithmus \ref{VoxelZylinder}
+um $1$ verringert werden, um den korrekten resultierenden Radius zu erhalten.
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=14cm]{Bilder/Voxelluecken_Rand}
+	\caption[Scharten am Rand des Zylinders]{\emph{Scharten am Rand des Zylinders}:
+	 betrachtet wird Zylinderrand, die Zahlenwerte geben die relative Höhe an:
+	 Sind initial Lücken am Rand (Fig. (a), rote Quadrate), so werden diese nicht per 6er-Nachbarschafts-Voxelblock geschlossen (Fig. (b)).}
+	 \label{B_Voxelluecken_Rand}
+\end{figure}
+
+Eine Verbesserungsidee stellt das Schließen der Lücken schon in der Grundfläche dar, also vor dem eigentlichen Zeichnen des Zylinders.
+Dadurch können einzelne Voxel statt Blöcken gezeichnet werden, der Zylinder ist runder und damit exakter.
+Diese Methode ist je nach Aufwand der Modifikation möglicherweise langsamer,
+besonders bei kurzen Zylindern, bei denen die Berechnung der Grundfläche einen relativ hohen Anteil am Gesamtaufwand hat.
+Zudem wären mehr Elemente in den Buffern, die durchlaufen werden müssten.
+
+\ \\
+Anmerkung: Algorithmus \ref{VoxelZylinder} ist nicht auf gerade Kreiszylinder beschränkt.
+Wenn $\left(\vv{P_e}-\vv{P_s}\right)$ nicht senkrecht auf der Ebene, die durch $\vv{Oben}$ und $\vv{Links}$ aufgespannt wird, steht, so wird ein schiefer Zylinder gezeichnet.
+Durch Verwendung von Vektoren $\vv{Oben}$ und $\vv{Links}$ mit einer Länge ungleich $1$, lassen sich Zylinder mit elliptischer Grundfläche zeichnen.
+Der Test in Zeile 6 des Algorithmus muss dabei wie in Formel \ref{ElliptischerZylinder} angepasst werden,
+wobei $r$ nicht mehr für den Radius, sondern für einen Skalierungsfaktor steht.
+\begin{equation}
+ \label{ElliptischerZylinder}
+  \left( \frac{\vv{P_{1}}}{\left|\vv{Oben}\right|} + \frac{\vv{P_{2}}} {\left|\vv{Links}\right|} \right)^2 \leq r^2
+\end{equation}
+
+%\ \\
+%Laufzeitbetrachtung:
+%- beide Algorithmen: linear in Anzahl bearbeiteter Voxel, deren Anzahl von Radius abhängig
+%- Zylinder: O(r*r*l) l...Länge, r...Radius
+%- Kugel: O(r*r*r)
+
+%================================================================================================
+\subsection{Abarbeitung der Zeichenanweisungen}
+
+Das Zeichen der Gesamtstruktur erfolgt in zwei Schritten.
+In beiden Schritten sind die Vektoren des lokalen Koordinatensystems der Turtle initial $\vv{Vorn}=(1,0,0)$, $\vv{Oben}=(0,1,0)$ und $\vv{Links}=(0,0,1)$.
+
+Im ersten Schritt werden die Anweisungen zwar vollständig abgearbeitet,
+aber statt Striche wirklich zu zeichnen, wird nur die Ausdehnung der Gesamtstrukur bestimmt,
+um sie danach im vordefinierten Zeichenbereich, also dem Voxelraum, darstellen zu können.
+
+Hierzu werden vor Abarbeitung der Anweisungen die Strichlänge $L=1$ und die Startposition $\vv{P_0}=(0,0,0)$ gesetzt.
+Eine Bounding Box wird erstellt, die anfangs nur die Startposition beinhaltet.
+Nach jeder Positionsänderung wird die Bounding Box aktualisiert, so dass diese die Gesamtstruktur umschließt.
+Am Ende von Schritt 1 erfolgt die Berechnung der neuen Daten.
+Die Startposition wird so gesetzt, dass der Mittelpunkt der Struktur im Mittelpunkt des Voxelraums liegt.
+Die Strichlänge wird so angepasst, dass die gesamte Struktur in den vordefinierten Voxelraum passt.
+Dies geschieht unter Berücksichtigung des maximalen Strichradius, der dem Startradius entspricht.
+Der Startradius selbst wird nicht modifiziert.
+
+\ \\
+Im zweiten Schritt wird tatsächlich gezeichnet.
+Zuerst wird eine Kugel mit dem Startradius an der Startposition $\vv{P_0}$ zum Abschließen des ersten Striches gesetzt.
+Dann erfolgt die schrittweise Abarbeitung der Zeichenanweisungen unter Verwendung der im ersten Schritt bestimmten Werte für $L$ und $\vv{P_0}$.
+
+Zur Optimierung werden direkt aufeinander folgende Striche zu einem Strich zusammengefasst.
+Dazu werden Folgen von '$F$' und '$[$' kombiniert.
+Bei Symbol '$F$' wird die aktuelle Position errechnet, bei Symbol '$[$' wird der aktuelle Zustand gespeichert.
+Der Strich wird erst gezeichnet, wenn er die komplette Länge erreicht hat.
+Dadurch werden Verbindungskugeln zwischen den einzelnen Strichen und das Berechnen der Grundfläche für weitere Zylinder eingespart.
+
+Für die Position der Turtle werden Gleitkommazahlen benutzt.
+Bei größeren Strukturen kann die Strichlänge kleine Werte annehmen,
+wodurch sich die Position nicht zwangsläufig ändert, wenn eine Zeichenanweisung '$F$' vorliegt.
+Deswegen werden Striche nur dann gezeichnet, wenn, in Voxelkoordinaten umgerechnet, die neue Position ungleich der alten Position ist.
+Falls sich die neue Position von der alten Position in jeder Dimension um höchstens einen Voxel unterscheidet,
+reicht es, nur eine Kugel zu zeichnen, statt Zylinder und Kugel.
+
+\ \\
+Den Hauptanteil an der Laufzeitkomplexität des Verfahrens trägt im Normalfall der Zeichenalgorithmus für Striche,
+welcher auf der Laufzeitkomplexität für das Zeichnen von Kugel und Zylinder beruht.
+Er ist linear in der Anzahl der gezeichneten Voxel, wobei sich aber Striche untereinander überlagern können
+und so Voxel mehrfach gezeichnet werden.
+Mit einer Strichlänge von $L$ und einem Startradius von $r$ ergibt sich eine Laufzeitkomplexität pro Strich von
+$\mathcal O(L\cdot r^2)$ für den Zylinder plus $\mathcal O(r^3)$ für die Kugel, also $\mathcal O(L\cdot r^2 + r^3)$ insgesamt.
+
+Mit $n$ Strichen und $m$ weiteren Anweisungen ergibt sich als Gesamtlaufzeitkomplexität
+$\mathcal O(m + n \cdot L\cdot r^2 + n \cdot r^3)$.
+
+%Auf Grund von Überlagerungen werden allerdings Voxel mehrfach gezeichnet.
+%bezogen auf den Radius $r$ ergibt sich somit $\mathcal O(r^2L)$ für den Zylinder plus $\mathcal O(r^3)$ für die Kugel, also $\mathcal O(r^3)$ insgesamt.
+%Da die Strichlänge $L$ von Struktur zu Struktur stark variiert, ist die Einbeziehung dieser schwer umsetzbat.
+%Stattdessen lässt sich der Radius als Bezugs-Parameter für die Laufzeitkomplexität sehr gut verwenden,
+%da eine Veränderung des Radius die Grundstruktur einer Zeichnung ähnlich lässt.Als Laufzeitkomplexität bezogen auf den Radius $r$ ergibt sich somit $\mathcal O(r^2)$ für den Zylinder plus $\mathcal O(r^3)$ für die Kugel,
+%also $\mathcal O(r^3)$ insgesamt.
+
+%================================================================================================
+\section{Nachbearbeitung}
+
+Die nun gezeichnete Voxelgrafik wird nachbearbeitet, um die Struktur höhlenartiger und realistischer zu gestalten.
+Zu den Nachbearbeitungsschritten gehört zum einen die Erosion und zum anderen die Filterung schwebender Fragmente.
+Für diese Schritte sind die Begriffe \emph{Randvoxel} und \emph{Randvoxel im erweiterten Sinn} relevant.
+Ein \emph{Randvoxel} ist ein Voxel mit Belegung $0$ mit mindestens einem Nachbarvoxel in 6er-Nachbarschaft, der die Belegung $1$ besitzt.
+Ein \emph{Randvoxel im erweiterten Sinn} ist ein Voxel mit Belegung $0$ mit mindestens einem Nachbarvoxel in 18er-Nachbarschaft, der die Belegung $1$ besitzt.
+
+\subsection{Erosion}
+\label{K_Erosion}
+\begin{figure}[htbp]
+  \centering  
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Erosion_ohne}}
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_Erosion_mit}}  
+  \hfill
+	\caption[Erosion im Voxelraum]{\emph{Erosion im Voxelraum}: v.l.n.r. (a) ohne Erosion, (b) mit Erosion (ein Erosionschritt mit $p_e=0,5$)}
+	\label{B_Erosion}
+\end{figure}
+\noindent Die Erosion bewirkt Zerklüftung an den Rändern der Grafik und ist mehrfach anwendbar.
+Die Auswirkungen sind in Abbildung \ref{B_Erosion} zu sehen.
+Erodiert werden grundsätzlich nur \emph{Randvoxel} der Struktur.
+
+Bei der Durchführung des Verfahrens wird jeder Randvoxel mit einer Wahrscheinlichkeit, die Erosionswahrscheinlichkeit $p_e$ genannt wird, auf $1$ gesetzt.
+Im ersten Schritt wird mittels einer Schleife über den kompletten Voxelraum gelaufen und jeder Randvoxel mit der Wahrscheinlichkeit $p_e$ mit $2$ markiert.
+Im zweiten Schritt werden alle Voxel des Voxelraums mit Markierung $2$ auf den Wert $1$ gesetzt, also erodiert.
+Durch Aufteilung in zwei Schritte werden Konflikte vermieden, da bei nur einem Schritt die Nachbarn neu erodierter Voxel sofort wieder erodiert werden könnten.
+Dadurch könnte die Erosion bei schon einer Anwendung des Erosionsverfahrens prinzipiell beliebig weit voranschreiten, statt nur einen Voxel tief.
+
+Der Erosionsprozess hat eine Laufzeitkomplexität von $\mathcal O(n)$, mit $n$ als Anzahl aller Voxel im Voxelraum.
+
+\subsection{Filterung schwebender Fragmente}
+\label{K_Filterung}
+\begin{figure}[htbp]
+  \centering  
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_schwebendes_Fragment}}
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_schwebendes_Fragment2}}  
+  \hfill
+	\caption[Schwebende Fragmente im Voxelraum]{Schwebende Fragmente im Voxelraum}
+	\label{B_SchwebendesFragment}
+\end{figure}
+\noindent Schwebende Fragmente entstehen bei der Umschließung von Gebieten durch gezeichnete Striche,
+bei der Erosion oder durch das Hineinschneiden von Gangöffnungen in die Voxelstruktur (siehe Kapitel \ref{KK_AndockenHoehle}).
+Abbildung \ref{B_SchwebendesFragment} zeigt solche Fragmente.
+Sie sind i.d.R. für Höhlen unrealistisch, da sie dem Wirken der Gravitation widersprechen.
+Durch die Filterung werden diese Fragmente entfernt.
+
+Es sei im Folgenden angenommen, dass jeder Voxel am Rand des Voxelraums die Belegung $0$ habe.
+Um ein schwebendes Fragment zu charakterisieren, wird Definition \ref{Zusammenhangskomponente} benötigt.
+Bei schwebenden Fragmenten handelt es sich um Zusammenhangskomponenten, die nicht der äußeren Zusammenhangskomponente entsprechen.
+
+\begin{TheoremDefinition}[Zusammenhangskomponente]
+		Eine Zusammenhangskomponente \\ besteht ausschließlich aus Voxeln mit Belegung $0$ und
+		jeder Voxel mit Belegung $0$ ist Teil einer Zusammenhangskomponente.
+		Ein Voxel gehört zu einer Zusammenhangskomponente M, wenn er einen Nachbarvoxel in 6er-Nachbarschaft besitzt, der zu M gehört.
+		Ein Voxel kann nicht mehreren Zusammenhangskomponenten angehören.
+		
+		Die äußere Zusammenhangskomponente ist die Zusammenhangskomponente, der der Voxel mit den Koordinaten $(0,0,0)$ angehört.
+    \label{Zusammenhangskomponente}
+\end{TheoremDefinition}
+
+Der erste Ansatz des Filterungsalgorithmus verwendet eine Tiefensuche oder wahlweise Breitensuche über alle $0$-Voxel von $(0,0,0)$ aus beginnend.
+Dabei wird der Voxelraum als Graph aufgefasst, mit den Voxeln als Knoten und Kanten zwischen Voxeln gleicher Belegung in 6er-Nachbarschaft.
+Alle gefundenen Voxel werden mit $2$ markiert, wodurch genau und ausschließlich die äußere Zusammenhangskomponente komplett mit $2$ markiert wird.
+%
+Im zweiten Schritt werden alle $0$-Voxel zu $1$-Voxeln abgeändert, da diese zu schwebenden Fragmenten gehören.
+Danach werden alle $2$-Voxel wieder zu $0$-Voxeln umgelabelt.
+	
+Problematisch ist, dass die äußere Zusammenhangskomponente eine meist hohe Voxelanzahl besitzt.
+Dies bedeutet einen hohen Speicherverbrauch, da im Stack (für die Tiefensuche) bzw. in der Queue (für die Breitensuche)
+die Position der Voxel gespeichert werden muss.
+Diese umfasst je nach Auflösung des Voxelraums mehrere Byte.\footnote{Bei der verwendeten Auflösung von $512$ Voxeln Seitenlänge mindestens $27$ Bit.}
+
+\ \\
+Die zweite und implementierte Variante wird in Algorithmus \ref{VoxelFilter} aufgezeigt.%\footnote{Die
+%tatsächlichen Schleifenschranken lassen sich hierbei noch etwas schärfer setzen.}
+Gegeben sei der Voxelraum mit seiner Ausdehnung von $[0,X_{vmax}] \times [0,Y_{vmax}]\times [0,Z_{vmax}]$. \\
+\emph{Schritt 1}:
+Beginnend vom Rand des Voxelraums wird ein Randvoxel der äußeren Zusammenhangskomponente gesucht.
+Für einen schnellen Test wird nur geprüft, ob der aktuelle Voxel$(x,y,z)=0$ und Voxel$(x+1,y,z)=1$ gilt, anstatt alle Nachbarn zu betrachten.
+Die Suche wird mit $x=0$ begonnen und mit aufsteigenden $x$-Werten fortgesetzt.
+Der erste so gefundene Voxel muss zur äußeren Zusammenhangskomponente gehören. \\
+\emph{Schritt 2}:
+Von diesem Voxel aus wird eine Breitensuche über alle Randvoxel im erweiterten Sinn durchgeführt und alle gefunden Voxel auf $2$ gesetzt. 
+Damit wird der komplette Rand der äußeren Zusammenhangskomponente, also die \emph{äußere Hülle}, mit $2$ markiert. \\
+\emph{Schritt 3}:
+Nun wird der restliche Voxelraum geprüft und erneut nach Randvoxeln gesucht.
+Dadurch, dass schwebende Fragmente im Inneren von 1er-Voxel-Gebieten liegen, kann der zu durchsuchende Bereich
+in jeder Dimension um einige Voxel eingeschränkt werden.
+Wenn ein Randvoxel gefunden wird, muss dieser zu einem schwebenden Fragment gehören.
+Nun wird eine Breitensuche über die komplette Zusammenhangskomponente durchgeführt und alle gefundenen Voxel werden auf $1$ gesetzt,
+wodurch das schwebende Fragment entfernt wird. \\
+\emph{Schritt 4}:
+Zum Schluss werden alle Voxel mit Belegung $2$ wieder auf $0$ abgeändert.
+
+\ \\
+Bei dieser Variante werden nur die Voxel des Rands der äußeren Zusammenhangskomponente
+sowie die Voxel der schwebenden Fragmente in die Queue geladen und dies einzeln Komponente für Komponente.
+Obwohl beide Varianten einen Komplexität bzgl. des Speicherverbrauchs von $\mathcal O(n)$ haben,
+wird der letztere Algorithmus in der Praxis i.A. weniger Speicher benötigen als der erstere.
+Beide Verfahren haben eine Laufzeitkomplexität von $\mathcal O(n)$ .
+
+%- äußere Hülle: Randvoxel im erweiterten Sinn der äußeren Zusammenhangskomponente
+
+%\begin{figure}[hbtp]
+%  \centering  
+%	\includegraphics[width=10cm]{Bilder/Filterung}
+%	\caption[Filterung schwebender Fragmente - Gebietsgrenzen]{\emph{Filterung schwebender Fragmente - Gebietsgrenzen}: 
+%	Voxel sind weiß markiert, Voxel mit Belegung 1 grau, Voxel der äußeren Hülle rot. \\
+%	Die Grenzen der Gebiete sind eingezeichnet: 
+%	Der Startvoxel der äußeren Hülle wird im Bereich  $[0,X_{vmax}-2] \times [1,Y_{vmax}-1]\times [1,Z_{vmax}-1]$
+%	Die äußere Hülle erstreckt sich im Bereich $[E,X_{vmax}] \times [0,Y_{vmax}]\times [0,Z_{vmax}]$.
+%	Die schwebenden Fragmente liegen im Bereich $[E+2,X_{vmax}-2] \times [2,Y_{vmax}-2]\times [2,Z_{vmax}-2]$.
+%	}
+%	\label{B_Filterung}
+%\end{figure}
+
+\begin{algorithm}
+\caption{Filterung schwebender Fragmente im Voxelraum}
+\label{VoxelFilter}
+\algorithmicrequire{ungefilterter Voxelraum, mind. 1 Voxel breiter Rand des Voxelraums mit $0$ belegt} \\
+\algorithmicensure{gefilterter Voxelraum}
+\begin{algorithmic}[1]
+
+	\State $\triangleright$ Schritt 1: Finde Startvoxel für äußere Hülle
+	\For{$x = 0 \to X_{vmax}-2$} \Comment{Suche mit aufsteigender X-Koordinate}
+		\ForAll{$(y,z) \in [1,Y_{vmax}-1]\times [1,Z_{vmax}-1]$}
+			\If{$Voxel(x,y,z)=0 \wedge Voxel(x+1,y,z)=1$}
+				\State \textbf{put} $(x,y,z)$ \textbf{in} Queue	
+				\State $E \gets x$		\Comment{niedrigste X-Koordinate der äußeren Hülle}
+				\State \textbf{break}	\Comment{Abbrechen der Suche}
+			\EndIf
+		\EndFor
+	\EndFor
+	
+	%\State
+	\State $\triangleright$ Schritt 2: Markierung der äußeren Hülle
+	\While{$Queue\neq leer$}
+		\State \textbf{take} $\vv{a}$ \textbf{from} Queue	
+		\ForAll{$\vv{b} \in 6er\ Nachbarschaft$ \textbf{of} $\vv{a}$}		
+			\If{$\vv{b} \equiv Randvoxel\ im\ erweiterten\ Sinn$}
+			%\If{$Voxel(\vv{b}) = 0 \wedge \exists  \left(Voxel(\vv{c})=1\right) \in 18er\ Nachbarschaft$ \textbf{of} $\vv{b}$}
+				\State \textbf{put} $\vv{b}$ \textbf{in} Queue	
+				\State $Voxel(\vv{b}) \gets 2$	\Comment{Markieren des Voxels}
+			\EndIf		
+		\EndFor
+	\EndWhile
+	
+	%\State
+	\State $\triangleright$ Schritt 3: Löschung freischwebender Komponenten
+	\ForAll{$(x,y,z) \in [E+2,X_{vmax}-2] \times [2,Y_{vmax}-2]\times [2,Z_{vmax}-2]$}
+		\If{$Voxel(x,y,z)=0 \wedge Voxel(x+1,y,z)=1$}
+			\State \textbf{put} $(x,y,z)$ \textbf{in} Queue
+			\State $Voxel(x,y,z) \gets 1$	\Comment{Löschen des Voxels}
+		
+			\While{$Queue\neq leer$}
+				\State \textbf{take} $\vv{a}$ \textbf{from} Queue	
+				\ForAll{$\vv{b} \in 6er\ Nachbarschaft$ \textbf{of} $\vv{a}$}		
+					\If{$Voxel(\vv{b}) = 0$}
+						\State \textbf{put} $\vv{b}$ \textbf{in} Queue	
+						\State $Voxel(\vv{b}) \gets 1$	\Comment{Löschen des Voxels}
+					\EndIf		
+				\EndFor
+			\EndWhile		
+		
+		\EndIf
+	\EndFor	
+	
+	%\State
+	\State $\triangleright$ Schritt 4: Originalmarkierung der äußeren Hülle wiederherstellen
+	\ForAll{$(x,y,z) \in [E,X_{vmax}] \times [0,Y_{vmax}]\times [0,Z_{vmax}]$}
+	 	\If{$Voxel(x,y,z) = 2$}
+	 		\State $Voxel(x,y,z) \gets 0$
+	 	\EndIf		
+	\EndFor
+	
+\end{algorithmic}
+\end{algorithm}
+
+
+\subsection{Anmerkung zur Optimierung}
+\label{K_Voxeloptimierung}
+
+Algorithmus \ref{VoxelFilter} benötigt zur Markierung der äußeren Hülle mindestens einen 1 Voxel breiten Rand aus Voxeln mit Belegung 0.
+Zur Vermeidung von Sonderfällen an Rändern ist es sinnvoll, diesen Rand auf drei Voxel zu erweitern.
+Ein Voxel wird dabei für die Markierung der äußeren Hülle benötigt plus einen Voxel für die Nachbarschaft
+plus einen Voxel für die Prüfung, ob dieser Nachbarvoxel ebenfalls ein Randvoxel im erweiterten Sinn ist.
+
+Dieser Rand ist ebenfalls ausreichend, damit die Erosion, die im nächsten Kapitel folgende Umwandlung
+sowie das Markieren von Andockstellen (Kapitel \ref{K_Architekt}) ohne Randprüfungs-Sonderfälle arbeiten können.
+In anfänglichen Implementierungen wurde hierdurch ein Speedup von bis zu Faktor $5$ erzielt. %$3$ bis
+
+%
+%Bei der Implementierung des Zeichenalgorithmus als auch der Erosion ist es sinnvoll, einen minimalen Rand des Voxelgebildes zu den Voxelraumgrenzen zu wahren,
+%welcher immer eine Belegung ungleich $1$ besitzt.
+%Dies ermöglicht es den Algorithmen der Erosion, des Filterns, der im nächsten Kapitel folgenden Umwandlung sowie dem Markieren von Andockstellen (Kapitel \ref{K_Architekt})
+%keine Sonderfälle für die Ränder prüfen zu müssen.
+%Dies brachte in anfänglichen Implementierungen einen durchschnittlichen Speedup von Faktor $3$ bis $5$.
+%
+%Damit komplett ohne Sonderfälle gearbeitet werden kann, muss der Voxelrand mindestens drei Voxel betragen.
+%Dies ist auf den Filterungsalgorithmus zurückzuführen:
+%Dieser Voxelrand ist ebenfalls für Erosion, Umwandlung und dem Markieren der Andockstellen ausreichend.
+%=====================================
+%Implementierung
+%=====================================
+%Code: Grundlegende Hierarchie
+%
+%Fraktalhöhle erzeugen:
+%----------------------
+%
+%VoxelZeichnen() .. Zeichnet Voxel und schiebt ihn in die Queue
+%
+%LinieZeichnen() ... zeichnet 3D-Linie mit 3D-Bresenham in den Voxelspace, nutzt zum Zeichnen VoxelZeichnen()
+%
+%PrimitivZeichnen() ...  zeichnet grafisches Primitiv , nutzt zum Zeichnen LinieZeichnen()
+%
+%GrafikZeichnen() ... zeichnet eien Turtle-Grafik (hier: Fraktal) indem String ausgelesen wird, nutzt zum Zeichnen PrimitivZeichnen()

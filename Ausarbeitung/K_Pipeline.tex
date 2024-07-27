@@ -1,0 +1,358 @@
+\chapter{Aufbau der Generatorpipeline}
+
+Wie im vorherigen Kapitel dargelegt wurde,
+ist die Generierung von auf einem Gitterlayout basierenden 2D-Dungeons gut erforscht. % (Roguelikes)
+Ziel ist es, realistische 3D-Dungeons ohne achsenparallele Gitterstruktur zu erstellen.
+Da Spiele i.A. mit Dreiecksnetzen als Basis für Geometrien arbeiten,
+sollen als Output eben solche plus eventuelle Zusatzdaten erzeugt werden.
+Das bedeutet, dass eine Konvertierung aller durch andere Modellierungsmethoden erzeugten Geometrien in Dreiecksnetze erforderlich ist.
+
+\section{Erste Ansätze}
+
+\subsection{Hierarchische bausteinartige Generierung}
+\label{Pipeline-Ansatz1}
+%!!!näher erläutern: (siehe großes Notizbuch):
+
+Der erste Ansatz verwendet eine hierarchische Generierung.
+Ein Generator ist für das Levellayout zuständig.
+Er legt Lage, Eigenschaften und Verbindungen einzelner Levelbausteine fest.
+Die einzelne Levelbausteine werden durch weitere Generatoren erstellt.
+Die Generierung der Bausteine erfolgt nach den bereits festgelegten Eigenschaften.
+Dazu gehören u.a. Öffnungen bzw. Verbindungen an definierten Stellen
+sowie die Vorgabe der Größe und des Typs des Bausteins, z.B. Raum, Gangstück oder Höhlenteil.
+Weitere Generatoren generieren die Feingeometrien, also Teile der Levelbausteine,
+wie beispielsweise die Wand eines Raums, Tische oder Torbögen.
+
+Zu den möglichen Probleme zählen die relativ regelmäßigen erzeugten Strukturen,
+die ähnlich zu den Roguelikes eine Art Kachel-Layout darstellen würden.
+Problematisch ist ebenfalls, die Höhlenstruktur realistisch und exakt in einen Bereich einzupassen,
+auch in Bezug auf Öffnungen und Verbindungen der Höhle zum Rest des Dungeons.
+Durch diese Problematik ist der Realismusgrad eventuell nicht hoch genug.
+
+\subsection{Übereinanderlegung und Vereinigung polygonaler Netze}
+\label{Pipeline-Ansatz2}
+%!!!siehe Masterarbeit-Konzept:
+
+Der nächste Ansatz orientiert sich bei der Generierung mehr an der Realität und damit an der Frage: Wie würde ein Dungeon entstehen?
+Zuerst erfolgt die Generierung einer zerklüfteten, gewundenen Höhle.
+Nach der Höhlenerstellung geschieht das Hereinbauen von Räumen und Gängen um und in die fertige Höhlenstruktur.
+Insgesamt sind folgende Schritte angedacht:
+
+\begin{figure}[htbp]
+  \centering  
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Scan_LSys2_Skelett}}
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Scan_LSys2_Radius14}} 
+  \hfill
+	\caption[L-Systeme für Höhlenstrukturen]{\emph{L-Systeme für Höhlenstrukturen}: 
+	v.l.n.r. (a) dargestellt ist die sechste Iteration eines zufällig erzeugten L-Systems $G$  mit\\
+	$G=\langle \{F,X,Y,+,-\},FF,\{F\rightarrow FXF+YX-F-, X\rightarrow YFY+,$ \\
+	$ Y\rightarrow -X-YXFF\} \rangle$ und $\alpha_{Gier} = 276^\circ$		\\
+	 (b) dieselbe Iteration desselben L-Systems, gezeichnet mit räumlicher Ausdehnung der Striche}
+	\label{B_LSys_Hoehlenbasis}
+\end{figure}
+
+\ \\
+\emph{1. Schritt}: Generierung der Höhle.
+Ein Beispiel für die zugrundeliegende Idee ist in Abbildung \ref{B_LSys_Hoehlenbasis} gezeigt:
+Eine fraktalähnliche Struktur auf der Basis eines Lindenmayer-Systems (s. Kapitel  \ref{K_GenLsys})
+ergibt durch räumliche Expansion ein zerklüftetes Höhlensystem.
+Hierzu erfolgt zuerst die Erstellung eines fraktalartigen Höhlenskeletts mittels eines passenden L-Systems.
+Danach wird dieses Skelett zu einem Dreiecksnetz aufgeblasen und entstehende Überlappungen werden entfernt.
+
+Problematisch ist das Entfernen der Selbstüberschneidung der Höhlenstruktur.
+Hierzu müssen alle Schnitte zwischen Dreiecken gefunden,
+die schneidenden Dreiecke zerlegt
+und danach sämtliche inneren Dreiecke entfernt werden.
+Dieser Prozess ist sehr aufwändig.
+%!!!Quellen ?[proc08.pdf/rosen][V1Nos1to4\_54.pdf] falls O(nlogn) -> besonders bei vielen Dreiecken lange Laufzeit
+
+\ \\
+\emph{2. Schritt}: Platzierung von Gängen und Räumen an passenden Stellen.
+Zuerst werden die passenden Stellen gesucht.
+Dann erfolgt die Auswahl oder auch Generierung der Gänge und Räume.
+Abschließend werden diese platziert, wobei sich die Objekte an den Verbindungsstellen überlappen.
+
+\ \\
+\emph{3. Schritt}: Verschmelzung.
+Die Höhle, Gänge und Räume werden zu einem Dreiecksnetz verschmolzen.
+Dies entspricht der Booleschen Vereinigung des Inneren der Ausgangsnetze.
+
+Es ergibt sich ein ähnliches Problem wie in Schritt 1.
+Zusätzlich herausfordernd ist die Beibehaltung der passenden Texturierung beim Zerlegen von Raum- oder Gangdreiecken.
+Die Höhle kann per prozeduraler 3D-Textur texturiert werden, wofür keine expliziten Texturkoordinaten berechnet werden müssen.
+Bei Gängen und Räumen sind 2D-Texturen besser geeignet.
+
+%Siehe Konzept: (das folgende überarbeiten)
+%Schritte:
+%Generierung der Höhle
+%---------------------
+%//- Erstellung eines 3D-Fraktalskeletts für die grundlegende Struktur der Höhle
+%//- Aufblasen des Skelett zu einem 3D-Gebilde im Voxelraum
+%//- Umwandlung der Voxelhöhle in Dreiecksnetz
+%//-[BILD]
+%//- passende Texturierung der Höhle
+%
+%- Erstellung von Fraktal-Skelett (Lindenmayer-System) für Höhle
+%- Aufblasung des Skeletts zu Dreiecksnetz
+%- Entfernung von Überlappungen
+%
+%Hineinschneiden der Räume
+%--------------------------
+%- Räume, Gänge und andere Gebilde aus Dreicksnetzen werden gemeinsam mit dem Dreiecksnetz der Höhle im 3D-Raum platziert
+%- Verschmelzung aller Dreicksnetze
+%  - ein zusammenhängendes Dreicksnetz entsteht (das des Dungeons)
+%	- Beibehaltung der Texturierung der Teilnetze (Teilnetz: zusammenhängend, zu einem Ausgangobjekt gehörig)
+%- Herausforderung: Übergänge zwischen Teilnetzen, Entfernung überschüssiger Polygone
+%-[BILD]
+%
+%Platzierung zusätzlicher Detail- und Interaktionsobjekte
+%--------------------------------------------------------
+%- Partikeleffekte
+%- Fallen, Monster
+%- 3D-Objekte ohne Integration ins Dreiecksnetz der Höhle: z.B. Truhen, Pflanzen
+%	- sinnvoll für Objekte die mehrfach auftauchen: müssen nur einmal gespeichert werden
+%		(bei Intergration ins Dreicksnetz würde mehrfach gespeichert werden)
+%		
+%Zerlegung des Dungeons 
+%----------------------
+%- Zerschneiden des Dungeons in mehrere Stücke (Sektoren)
+%- Berechnung mittels Dijkstra: welchen Abstand haben je 2 Sektoren
+%	(gemeint ist die Anzahl von Sektoren die man im Dungeon durchqueren müsste, um von einem Sektor zum anderen zu gelangen)
+%	- sinnvoll für Level-of-Detail Algorithmen
+%
+%Generierung von Dreiecksnetzen verschiedene Auflösung für die Dungeonteile
+%--------------------------------------------------------------------------
+%- Nutzung eines Reduktionsalgorithmus, um  Sektoren in mehren Detailstufen zu speichern
+%	- Herausforderung: benachbarte Sektoren passen an den Rändern zusammen, egal welche Detailstufe
+%	
+%Export:
+%-------
+%- Speichern der resultierenden Dreiecksnetze	
+%- Speichern der Zusatzinformationen
+%	- Position und Ausrichtung von Detail- und Interaktionsobjekten
+%	- Abstandsmatrix der Sektoren
+%	
+%	
+%Probleme: 
+%- Verschmelzungsoperation (überlappende Höhlenteile, Räume, Gänge) aufwändig
+%  - Laufzeit nicht linear:
+%   
+%  	O(n*log n) (ERKLÄRUNG mit Quelle www.cs.swarthmore.edu/~adanner/cs97/s08/papers/rosen.pdf)   	
+%  	
+%	- Datenstrukturen dafür benötigen viel Speicher (Doubly Connected Edge List o.ä.)
+%- Raumstruktur wird durch die Verschmelzung verändert, was nicht immer gewünscht ist
+%- Gänge sind nicht prozedural -> wenig Flexibilität -> Dungeonstruktur nicht vielfältig genug
+
+\section{Iterative Erstellung mittels Subgeneratoren für einzelne Dungeonbestandteile}
+
+Das umgesetzte Verfahren enthält Elemente aus beiden Ansätzen.
+Die Generierungsmethode ist iterativ und der natürlichen Entstehung eines Dungeons folgend.
+Es werden Subgeneratoren für die Erstellung der einzelnen Geometrien verwendet,
+wobei die Teile des Dungeons so konstruiert werden, dass sie nahtlos aneinander passen.
+Das Verfahren besteht aus den folgenden Schritten:
+
+\ \\
+\emph{1. Schritt}: Es werden Turtle-Grafik-Zeichenanweisungen mittels eines Lindenmayer-Systems erstellt (s. Kapitel \ref{K_GenLsys}).
+									Diese beschreiben die grundlegende Höhlenstruktur.									
+
+\ \\
+\emph{2. Schritt}: Die Turtle-Grafik wird im Voxelraum gezeichnet (s. Kapitel \ref{K_TurtleVoxel}).
+	Voxel haben gegenüber der Verwendung eines Dreicksnetzes (wie in Abschnitt \ref{Pipeline-Ansatz2}) den Vorteil,
+	dass die Überlagerungen der einzelnen Strukturen keine Konflikte verursachen.
+	%- Vorteile: CSG-Operationen/Überlagerung sehr einfach umsetzbar
+	%- hohe Flexibilität bei der Gestaltung	Das entstehende Gebilde stellt die Höhle dar.
+
+\ \\
+\emph{3. Schritt}: Es erfolgt die Erosion der Höhle im Voxelraum, um die natürliche Zerklüftung zu verstärken (s. Kapitel \ref{K_Erosion}).
+
+\ \\
+\emph{4. Schritt}: Die Filterung schwebender Fragmente im Voxelraum wird durchgeführt (s. Kapitel \ref{K_Filterung}).
+									Hierbei werden solche Fragmente entfernt,	da sie der natürlichen Gravitation widersprechen.
+
+\ \\
+\emph{5. Schritt}: Räume und Gänge werden in den Freiräumen um die Höhle hinzugefügt (s. Kapitel \ref{K_GaengeRaeumeKonzept} und \ref{K_Architekt}).
+						Die Räume werden dabei über die Gänge untereinander und mit der Höhle verbunden.
+						Dieser Schritt beinhaltet ebenfalls die Berechnung verschiedener Detailstufen
+						und Sichtbarkeitsinformationen für die Gänge (s. Kapitel \ref{K_LOD}).
+	
+\ \\
+\emph{6. Schritt}: Eine zweite Filterung schwebender Fragmente im Voxelraum wird durchgeführt,
+						um die eventuell durch das Ausfräsen von Gangöffnungen entstandenen Fragmente zu entfernen.
+
+\ \\
+\emph{7. Schritt}: Die Umwandlung der Voxelhöhle in ein Dreiecksnetz bzw. mehrere Subnetze findet statt (s. Kapitel \ref{KK_Umwandlung}).
+						Dieser Schritt beinhaltet ebenfalls die Berechnung verschiedener Detailstufen für die entstehenden Netze
+						und der Sichtbarkeitsberechnungen für die Höhle (s. Kapitel \ref{K_LOD}).
+
+\ \\
+Diese Umwandlung der Höhle in ein Dreiecksnetz erfolgt erst im letzten Schritt,
+da in Schritt 5 und 6 Änderungen an der Voxelhöhle vorgenommen werden.
+In Schritt 5 werden Öffnungen für Gänge hinzugefügt und in Schritt 6 dadurch entstandene schwebende Fragmente entfernt.
+
+Auf die Erosion und das Filtern schwebender Fragmente kann bei der Erstellung eines Dungeons verzichtet werden.
+Wenn Schritt 6 durchgeführt werden soll, muss auch Schritt 4 durchgeführt werden,
+da sonst Räume in Fragmenten platziert werden können, die später entfernt werden.
+
+%==================================================================
+%==================================================================
+
+\section{Allgemeine Anmerkungen}
+
+
+\subsection{Die Irrlicht-Engine}
+
+Das entwickelte Dungeongenerator-Programm nutzt die Irrlicht-Engine \cite{W_Irrlicht} für die
+Darstellung, für die GUI, als Exporter und Importer, zur Speicherung von Dreiecksnetzen und für mathematische Hilfsroutinen.
+Die Vorteile der Irrlicht-Engine im Vergleich zu anderen Engines werden in \cite{T_EngineVergleich} dargelegt.
+Zu nennen ist hier beispielsweise die große Anzahl an unterstützten Mesh- und Texturformaten.
+
+Der wichtigste Grund für die Verwendung ist das Vorhandensein eines eigenen 3D-Szenenformats, dem .irr-Format,
+welches auf XML aufbaut und den Export sowie Import kompletter Szenen ermöglicht.
+Damit können erstellte Dungeons exportiert werden.
+Eine solche Szene kann dann als Spielwelt in einem Computerspiel importiert werden,
+wie es unter anderem in \cite{T_BachelorHoenig} getan wird.
+
+%Die Irrlicht-Engine lässt sich auch prakt für das
+
+\ \\
+Die Szenen in Irrlicht werden als Szenegraph verwaltet.
+Der Aufbau dieses Graphen entspricht einer Baumstruktur.
+Jeder Knoten enthält eine Transformation und optional ein Szenenobjekt,
+wie z.B. ein zu zeichnendes 3D-Objekt.
+Die Berechnung der resultierenden Transformation für jedes Objekt geschieht durch Aufmultiplizierung aller Transformationsmatrizen
+von der Wurzel des Szenegraphen bis zum Objekt selbst.
+
+\ \\
+Die Transformationen sind entweder direkt als $4\times4$ - Matrix $M$ angebbar
+oder einzeln als 3D-Vektoren für Skalierung, Rotation und Translation.
+Die Rotationswinkel $\left(\alpha_x,\alpha_y,\alpha_z \right)$ sind im Gradmaß für die jeweilige Achse im mathematisch positiven Sinn angeben.
+%also im UZS von Oben auf Ebene schauend da linkshändiges System: siehe http://de.wikipedia.org/wiki/Drehrichtung
+
+%Falls die Transformation durch Skalierung, Rotation und Translation angegeben ist,
+%berechnet Irrlicht daraus die entsprechende Transformationsmatrix $M$.
+
+Der Aufbau von $M$ entspricht dem aus Formel \ref{F_IrrMatrix}.
+Die Matrizen der Skalierung $S$, der Translation $T$
+und der Rotationen gemäß Eulerwinkeln $R_x$ (Rotation um X-Achse), $R_y$ (Rotation um Y-Achse) und $R_z$ (Rotation um Z-Achse)
+seien dabei aus den entsprechenden 3D-Vektoren gebildet.
+
+\begin{equation}
+ \begin{aligned}
+ \label{F_IrrMatrix}
+ 		M = T \cdot R_z \cdot R_y \cdot R_x \cdot S
+	\end{aligned}
+\end{equation}
+
+
+\subsubsection{Dreiecksnetze}
+\label{KK_Dreiecksnetze}
+
+Die Ablage der Dreiecksnetze, die auch als Dreiecksmeshes oder Meshes bezeichnet werden,
+geschieht mittels einer Menge von Vertices und einer Menge von Dreiecken.
+Die \emph{Vertices} werden in einem Array gespeichert.
+Jeder Vertex hat die Eigenschaften Position, Normale und Texturkoordinaten.
+Die \emph{Dreiecke} sind durch ihre Eckpunkte definiert.
+In einem Array werden die Indices der Vertices abgespeichert, aus denen die Dreiecke bestehen.
+Jedes Dreieck wird aus drei aufeinanderfolgenden Einträgen gebildet.
+
+Durch die Verwendung eines unsigned 16 Bit-Datentypes für die Vertexindices der Dreiecke
+ist die maximale Anzahl der Vertices je Netz auf $65536$ begrenzt.
+Meshobjekte bestehen in Irrlicht aus einem oder mehreren Meshbuffern, die einzelne Dreicksnetze darstellen.
+Die Begrenzung der Vertices gilt je Meshbuffer.
+
+%- !!!Erklärung: Dreiecksnetz
+%- Dreiecksnetze in vielen Bereichen primäres Ablageformat für Geometrien:
+%  - Computerspiele, 3D-Modelling-Programme
+%-> erzeugte Geometrien des Dungeongenerators sollen zum Schluss als Dreiecksnetze verfügbar sein
+% SCHON AM ANFANG DES KAPITELS ERLÄUTERT
+  
+\subsubsection{Koordinatensysteme}
+
+In vielen 3D-Modelling-Programmen und der meisten Literatur wird ein rechtshändiges Koordinatensystem mit Z als Höhenachse verwendet.
+Irrlicht verwendet ein linkshändiges Koordinatensystem mit Y als Höhenachse.\footnote{Die
+Idee hinter einem solchen Koordinatensystem ist es, das zweidimensionale XY-Koordinatensystem des Bildschirms um die Tiefenachse Z zu erweitert.}
+Diese Ausarbeitung und das Dungeongeneratorprogramm verwenden ebenfalls ein derartiges linkshändiges System,
+wodurch Umrechnungen innerhalb des Generatorprogramms vermieden werden können.
+
+Falls eine Konvertierung erforderlich ist (beispielsweise beim Export in ausgewählte 3D-Formate),
+kann zur Umrechnung beider Koordinatensystem die Y- und Z-Achse vertauscht werden.
+In homogenen Koordinaten ist dies durch die Multiplikation mit Matrix $M_k$ möglich:
+
+\begin{equation}
+M_k =  \begin{pmatrix}
+    1 & 0 & 0 & 0 \\
+    0 & 0 & 1 & 0 \\
+    0 & 1 & 0 & 0 \\
+    0 & 0 & 0 & 1 \\
+  \end{pmatrix}
+\end{equation}
+
+\ \\
+Unter Umständen muss nach dieser Umrechnung die Umlaufrichtung der Dreiecke geändert werden,
+damit die Flächennormalen in die korrekte Richtung zeigen.
+
+\subsection{Abstandsmaße}
+
+Für die weitere Betrachtung ist eine Erklärung der verwendeten Abstandsmaße relevant.
+Solange nichts anderes erwähnt wird, soll mit "`Abstand"' der euklidische Abstand bezeichnet werden.
+Der euklidische Abstand zwischen zwei Punkten $\vv{x}=(x_1,x_2,...,x_n)$ und $\vv{y}=(y_1,y_2,...,y_n)$ im n-dimensionalen Raum ist wie folgt definiert:
+
+\begin{equation}
+ \label{F_AbstandEuklidisch}
+ 		D_{e}(\vv{x},\vv{y})= \sqrt{\sum\limits_{i=1}^{n} \left(x_{i}-y_{i}\right)^2}
+\end{equation}
+
+\ \\
+Der Manhattenabstand zwischen zwei solchen Punkten im n-dimensionalen Raum ist folgendermaßen definiert:
+
+\begin{equation}
+ \label{F_AbstandManhatten}
+ 			D_{m}(\vv{x},\vv{y})= \sum\limits_{i=1}^{n} \left|x_{i}-y_{i}\right|
+\end{equation}
+
+\subsection{Zufallsgenerator}
+
+Damit Teile des Dungeons zufällig erzeugt werden können und
+somit eine große Vielfalt von Form und Aufbau leicht zugänglich ist,
+müssen im Generatorprogramm Zufallszahlen erzeugt werden.
+Wichtig für diese ist eine optionale deterministische Generierungsmethode,
+damit jeder Dungeon aus wenigen Daten komplett erstellt werden kann.
+
+%\ \\
+Als Methode wird der \emph{lineare Kongruenzgenerator} verwendet, der 1949 von D.H. Lehmer eingeführt wurde
+und unter anderem in \cite[S.10 ff.]{B_Knuth} beschrieben ist.
+Die Methode verwendet vier Parameter: den Modulus $m$, den Multiplikator $a$, den Inkrementor $c$ und den
+Startwert $x_0$, welcher auch als Seed bezeichnet wird.
+Die Sequenz der Zufallszahlen $x_i$ berechnet sich daraus wie in Formel \ref{F_Zufallszahlen} angegeben,
+wobei mit $x_0$ begonnen wird.
+Durch feste Werte für $a$, $c$, $m$ und $x_0$ ist die Sequenz genau definiert, also deterministisch.
+Durch zufällige Festlegung der Werte, i.A. des Startwerts $x_0$, lassen sich variable Sequenzen erzeugen.
+
+\begin{equation}
+		x_{n+1}= \left(a\cdot x_n+c\right)\ \text{mod}\ m
+		\label{F_Zufallszahlen}
+\end{equation}
+
+\ \\
+Sinnvoll ist es, die Parameter so zu wählen, dass die Periode der erzeugten Sequenz möglichst groß ist.
+Diese gibt an, nach wie vielen Zahlen sich die gesamte Sequenz wiederholt.
+Nach dem Satz von Knuth \cite[S.17]{B_Knuth} wird die maximale Periodenlänge $m$ erreicht,
+wenn folgende drei Bedingungen zutreffen: \\
+
+\begin{compactenum}
+ \item $c$ ist teilerfremd zu $m$
+ \item jeder Primfaktor vom $m$ ist Teiler von $a-1$ 
+ \item wenn $m$ ein Vielfaches von $4$ ist, dann auch $a-1$
+\end{compactenum}
+
+\ \\
+Beispielwerte hierfür sind die Parameter $a=1103515245$, $c=12345$ und $m=32768$,
+die somit eine Periodenlänge von $32768$ erzeugen.
+
+\ \\
+Anzumerken ist, dass es sich bei den generierten Zahlen nicht um echte Zufallszahlen handelt, sondern um Pseudozufallszahlen,
+da sie nach festen Vorschriften berechnet werden.
+Echte Zufallszahlen sind mit heutiger Rechentechnik nicht erzeugbar.
+

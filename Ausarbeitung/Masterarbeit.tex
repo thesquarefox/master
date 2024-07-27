@@ -1,0 +1,147 @@
+
+%\documentclass[a4paper,11pt,oneside,headinclude,titlepage,bibliography=totoc,listof=totoc]{scrbook}
+\documentclass[a4paper,11pt,oneside,headinclude,titlepage,bibliography=totoc,listof=totoc,cleardoublepage=current]{scrbook}
+%,headings = normal, headings = onelinechapter, headings = onelineappendix, cleardoublepage=plain
+
+%\documentclass[a4paper,11pt,titlepage,bibliography=totoc,listof=totoc]{scrreprt}
+%\usepackage[DIV=15]{typearea}
+%\usepackage[inner=1.5cm,outer=1.5cm,top=1.5cm,bottom=1.5cm,includeheadfoot]{geometry}
+%\setlength{\topskip}{\ht\strutbox} % behebt Warnung von geometry
+%\setlength{\headheight}{1.1\baselineskip}   % Headheight hochsetzten
+\usepackage[a4paper]{geometry}
+\geometry{paper=a4paper,left=30mm,right=30mm,top=35mm,bottom=35mm}
+%\renewcommand{\chapterpagestyle}{scrheadings}
+%\renewcommand*\chapterheadstartvskip{\vspace*{-0.9cm}}
+\renewcommand*\chapterheadstartvskip{\vspace*{-0.5cm}}
+
+\usepackage{float}
+\usepackage{subfig}
+
+\usepackage[latin1]{inputenc}
+\usepackage[T1]{fontenc}			% ermöglicht die Silbentrennung von Wörtern mit Umlauten
+\usepackage[ngerman]{babel} 	% ermöglicht deutsche Silbentrennung und direkte Eingabe von Umlauten, ...
+
+\usepackage[pdftex]{hyperref} % PDF wird mit Lesezeichen (verlinktes Inhaltsverzeichnis) versehen (bei Betrachtung mit Acrobat Reader sichtbar)
+\hypersetup{% Ä=\304; Ö=\326; Ü=\334; ä=\344; ö=\366; ü=\374; ß=\377
+  pdftitle={Masterarbeit},
+  pdfauthor={Maximilian H\366nig},
+  pdfsubject={Prozedurale Spielweltgenerierung: Dungeons},
+  pdfkeywords={Computergrafik, Prozedurale Geometrie},
+  colorlinks=true, 		% aktiviert farbige Referenzen
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=black,
+  %plainpages=false, % weniger Warnungen durch eindeutigere Anker
+  %pdfpagelabels			% das gleiche
+}
+
+\usepackage[numbers]{natbib} 		% URLs etc. mit Bibtex, numbers = Zitierart (natbib -> für Naturwissenschaften)
+\bibliographystyle{alphadin} 		% Bibtex style, natdin
+
+\usepackage{graphicx}
+%\usepackage{epstopdf} 					% eps-Dateien mit pdftex nutzen
+
+\usepackage{amsmath} 
+\usepackage{amssymb}
+\usepackage{floatflt}
+
+\usepackage{wasysym}						% Winkel Zeichen
+\usepackage{dsfont}							% Zeichen für ganze Zahlen, natürlich Zahlen etc. mit \mathds{Z} etc.
+
+\usepackage{esvect}							% bessere Vektor-Darstellung mit \vv{Vektor}
+
+\usepackage{algorithm}					% Algortihmen per \begin{algorithm}
+\floatname{algorithm}{Algorithmus} % Caption-Rename
+\usepackage{algpseudocode} 			% Pseudcode per \begin{algorithmic}
+\renewcommand{\algorithmicrequire}{\textbf{Eingabe: }} 
+\renewcommand{\algorithmicensure}{\textbf{Ausgabe: }} 
+
+\usepackage{listings}						% für Quellcode
+\usepackage{color}							% farbiges Syntaxhighlighting
+
+\usepackage{paralist}						% kompakte Listen mit \begin{compactitem}, \begin{compactenum}
+
+% Tabellen farbig setzen
+\usepackage{color}
+\definecolor{FarbeZeit}{rgb}{0.8,1.0,0.8}
+\usepackage{colortbl}
+
+%\usepackage{tabularx}					% Tabellen mit konstanter Gesamtbreite
+
+%\usepackage{algorithmicx}
+
+%\usepackage{fullpage}
+
+%\usepackage{subfigure}
+
+\interfootnotelinepenalty=10000 % Strafwert für Verteilen von Fußnoten auf 2 Seiten
+
+%///////////////////////////////////////////////////
+
+\begin{document}
+
+\pagenumbering{roman}
+\title{Masterarbeit}
+\author{Maximilian Hönig}
+
+\include{Titel}
+%\newpage
+%\section*{}
+%\thispagestyle{empty}
+
+\include{Erklaerung}
+\newpage
+\section*{}
+%\thispagestyle{empty}
+
+%\begin{abstract}
+%Hier steht später der Abstract.
+%\end{abstract}
+\tableofcontents
+
+%\pagenumbering{arabic}
+%\pagestyle{scrheadings}
+%\KOMAoptions{DIV=12}
+%\KOMAoptions{headinclude}
+%\KOMAoptions{headlines=10}
+\newtheorem{TheoremDefinition}{Definition}
+
+\include{K_Einleitung}							% Einleitung
+%\include{K_Begriffe}								% Begriffe
+\include{K_AndereSpiele}						% Prozedurale Generierung erklärt, andere Computerspiele
+
+\include{K_Pipeline}								% Pipeline
+\include{K_Hoehlengenerierung}			% Erstellung der Höhle
+\include{K_UmwandlungDreiecksnetz}	% Erstellung der Höhle
+\include{K_Gaenge}									% Struktur und Prinzip der Gänge
+\include{K_Raumplatzierung}					% Hinzufügen von Räumen und Gängen
+%\include{K_ZusatzObjekte}					% Platzierung von Detailobjekten und Interaktionsobjekten
+\include{K_LevelOfDetail}						% Level of Detail
+
+\include{K_Implementierung}					% Programmstruktur
+%\include{Kapitel9}									% Ergebnisse
+
+%\include{Kapitel9}									%% Verwendung im Spiel
+\include{K_Auswertung}							% Auswertung 
+
+\begin{appendix}
+\include{A_Export}									% Export
+\include{A_Beispiele}								% Beispiele für Dungeons und Höhlen
+%\include{A_Screenshots}							% weitere Screenshots
+%\include{A_AnleitungDunGen}				% Anleitung für den Dungeongenerator
+%\include{A_AnleitungKompilierung}	% Anleitung für die Kompilierung des Programms
+%\include{A_Anmerkungen}						% Bugs und Anmerkungen
+\include{A_DVDInhalt}								% Inhalt der beliegenden DVD
+
+\end{appendix}
+
+%\appendix
+%\include{AnhangA}
+%\include{Quellen}
+\listoffigures
+%\nocite{*}													% alle Quellen anzeigen (auch nicht benutzte)
+\bibliography{quellen}							% quellen.bib  
+
+
+
+\end{document}

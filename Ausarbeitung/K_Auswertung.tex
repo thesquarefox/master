@@ -1,0 +1,352 @@
+\chapter{Auswertung}
+
+Dieses Kapitel beschäftigt sich mit konkreten Laufzeittests,
+Anmerkungen zu Parametern und weiteren Problemen.
+Danach wird eine Zusammenfassung getätigt und ein Ausblick
+für fortsetzende Arbeiten gegeben.
+
+\section{Untersuchungen zu Parametern und Laufzeiten}
+
+Tabelle \ref{T_MessDungeon} zeigt einen Überblick über die durchgeführten Laufzeittests.
+Die Ergebnisse wurden für jeden Dungeon über $500$ Messungen gemittelt.
+Die Abbildungen der verwendeten Dungeons finden sich in Anhang \ref{A_Beispiele},
+die zugehörigen XML-Konfigurationsdateien sind auf dem beiliegenden Datenträger mitgeliefert, siehe Anhang \ref{A_DVD}.
+
+Die aufgeführten Dungeons benötigen jeweils weniger als eine halbe Minute zur Erstellung.
+Tendenziell der größte Posten für die Laufzeit ist das Zeichnen der Voxelhöhle.
+Die Laufzeit hierfür ist stark abhängig von der Anzahl der Zeichenanweisungen, insbesondere Symbol $'F'$, sowie dem Strichradius.
+Beispiel \ref{B_DungeonBsp1} hat sehr viele Zeichenanweisungen bei einem Strichradius von $14$,
+und Beispiel \ref{B_DungeonBsp5} hat sehr wenige Zeichenanweisungen, aber einen Strichradius von $32$.
+%
+Die Erosion ist algorithmisch vergleichsweise invariant gegenüber der Struktur des Voxelgebildes
+und benötigt so unabhängig vom Dungeon eine annähernd konstante Laufzeit.
+%
+Filterung (schwebender Fragmente) 2 braucht ähnliche Zeiten für alle Dungeons.
+Es sind hier i.A. nur wenige, kleine schwebende Fragmente zu entfernen.
+Die vorhandenen Laufzeitunterschiede sind daher primär auf die unterschiedliche Ausdehnung der äußeren Hülle zurückzuführen.
+Bei Filterung 1 schwankt die Laufzeit stärker.
+Beispiel \ref{B_DungeonBsp5} besitzt ein sehr großes schwebendes Fragment im Inneren, daher wird signifikant mehr Rechenzeit benötigt.
+
+Der Aufbau der Sektor- und Scankarten hängt insbesondere von der Anzahl der zu erstellenden Scankarten ab.
+Beispiel \ref{B_DungeonBsp4} stellt einen sehr flachen Dungeon dar, wodurch weniger Scankarten erstellt werden müssen.
+Dadurch ist die benötigte Laufzeit hier geringer.
+%
+Die Laufzeit der Generierung von Gängen und Räumen ist nicht prinzipiell primär von der Anzahl der generierten Gänge abhängig.
+Falls starke Restriktionen bezüglich der Andockpositionen für die Gänge an der Höhle
+vorliegen, können die Andocktests den Primäranteil der Laufzeit bilden.
+Beispiel \ref{B_DungeonBsp5} ist ein solcher Fall.
+Hier wurde per Bodenabstandstest festgelegt, dass die Gänge nur im unteren Bereich an der Höhle andocken sollen.
+Dadurch werden die meisten Andockpositionen verworfen.
+%
+Wie sich zeigt, ist der Blickdichtigkeitstest für die Gänge recht effektiv, im Schnitt wurden über 84 Prozent aller Gänge
+als definitiv blickdicht erkannt.
+
+Die Laufzeiten der Umwandlung und Reduktion der Höhlennetze skalieren in etwa linear der Anzahl der Vertices und Dreiecke.
+Die restlichen Berechnungen nehmen einen nahezu konstanten Anteil an der Gesamtlaufzeit ein.
+
+%- Bisektionsverfahren, welches auch bei den Detailobjekten
+
+%Zufallsregel: F->(FF+-)* mit zufälligem Winkel != 90°,180°,270° (möglichst kein Vielfaches von 10 -> unregelmäßiger 
+%(z.B. Primzahlen?, kein Teiler von 360, modulo 90 kein Teiler von 90)) sorgt i.d.R. für ebene Höhlen
+%- zusätzlich Drehungen um die anderen Achsen -> nicht-ebene Höhlen
+%--> Tests: Regeln fest, dann Winkel variieren (z.B. mit Drachenkurven-Regeln aus Ausgangsregeln)
+%
+%Falls im Spiel keine Flugmöglichkeit/Leitern:
+%- Abstand Gang zu Boden festlegen (nicht zu gross)
+%- eher flache Höhlen konstruieren (Zeichen \$ hilft -> wieder horizontal ausrichten)
+
+
+
+%!!!DATEINAMEN DER TESTS ANGEBEN, feste Seeds!
+%- Einfluss von Parametern auf konkrete Ergebnisse und Laufzeiten
+%!!!hier nur Parameter und Ergebnisse erklären, große Screenshots der Höhlen in Anhang
+%- LOD Höhle austesten (welche Reduktion, Anzahl Vertices, Anzahl Dreiecke, Zeit)
+%
+%!!!Höhlen todo:
+%- Zerghive-Höhle (Spirale)
+%
+%Laufzeit: 3 Beispiele (im Anhang zu sehen)
+%Zeichnen,
+%Erosion,
+%Fragmente filtern (mit Erosion),
+%Umwandlung (mit und ohne Erosion)
+%Normalen berechnen
+%Level of Detail
+%
+%- Einfluss von Parametern auf konkrete Ergebnisse und Laufzeiten
+%!!!hier nur Parameter und Ergebnisse erklären, große Screenshots der Dungeons in Anhang
+%
+%- einzelne Perfomanz für verschiedene Programmteile testen
+%  - eigentliche Gangerstellung
+%  - Vistest Gang
+%  - Kollisiontest Gang<->Höhle
+
+
+\begin{table}
+\centering
+\begin{tabular}[htbp]{|l|r|r|r|r|r|}
+  \hline
+  Dungeon & \ref{B_DungeonBsp1} & \ref{B_DungeonBsp2} & \ref{B_DungeonBsp3} & \ref{B_DungeonBsp4} & \ref{B_DungeonBsp5} \\
+  \hline\hline 
+  \rowcolor{FarbeZeit}
+  Erstellung Zeichenanweisungen																										& 39 & 32 & 27 & 26 & 28 \\
+  Anzahl Zeichenanweisungen				& 826992 & 181989 & 39061 & 21845 & 1367 \\
+  \rowcolor{FarbeZeit}
+  Zeichnen																																				& 17219 & 1778 & 4239 & 3146 & 7164 \\
+  \rowcolor{FarbeZeit}
+  Erosion																																					& 1586 & 1585 & 1579 & 1576 & keine \\
+  \rowcolor{FarbeZeit}
+  Filterung 1																																			& 590 & 625 & 555 & 590 & 3300 \\
+  \hline
+  \rowcolor{FarbeZeit}
+  Sektoren- und Scankartenaufbau																									& 1337 & 1317 & 1766 & 820 & 2465\\
+  \rowcolor{FarbeZeit}
+  Generierung Räume und Gänge																											& 1799 & 1830 & 2994 & 1156 & 2285\\	
+  \rowcolor{FarbeZeit}
+  \ \ \ Generierung Gänge (inkl. LOD)																										& 908 & 1026 & 1795 & 739 & 293\\
+  \rowcolor{FarbeZeit}
+  \ \ \ Platzierung Detailobjekte																												& 23 & 24 & 42 & 18 & 5\\	  
+  \rowcolor{FarbeZeit}
+  \ \ \ Rest (Räume, Andocken, u.a.)																										& 868 & 780 & 1157 & 399 & 1987\\	  
+  Anzahl Räume 												& 35 & 42 & 66 & 27 & 16\\
+  Anzahl Gänge 												& 49 & 56 & 97 & 40 & 16\\
+  \ \ \ davon definitiv blickdicht  	& 44 & 44 & 84 & 39 & 11\\
+  \hline
+  \rowcolor{FarbeZeit}
+  Filterung 2 																																		& 588 & 625 & 556 & 589 & 733 \\
+  \hline
+  \rowcolor{FarbeZeit}
+  Umwandlung Voxelhöhle																														& 1890 & 2285 & 1911 & 2151 & 5002 \\
+  \rowcolor{FarbeZeit}
+  \ \ \ davon Normalenberechnung		 																										& 286 & 464 & 316 & 434 & 824 \\
+  Anzahl Vertices											& 400724& 683354 & 441594 & 621232 & 1315602\\
+  Anzahl Dreiecke											& 822748& 1390848 & 892120 & 1274544 & 2596588\\
+  Anzahl Höhlensubnetze 							& 13 & 36 & 36 & 28 & 56\\
+  \hline
+  \rowcolor{FarbeZeit}
+ 	Reduktion Höhlennetze Stufe 1																										& 458 & 813 & 586 & 732 & 1399 \\
+  Anzahl Vertices											& 226202& 387130 & 253981 & 353852 & 730974\\
+  Anzahl Dreiecke											& 473704& 798400 & 516894 & 739784 & 1427332\\
+  \rowcolor{FarbeZeit}
+ 	Reduktion Höhlennetze Stufe 2																										& 314 & 568 & 434 & 515 & 901 \\
+  Anzahl Vertices											& 129322& 221471 & 149665 & 206312 & 400090\\
+  Anzahl Dreiecke											& 279944& 467082 & 308262 & 444704 & 765564\\
+  \rowcolor{FarbeZeit}
+  Reduktion Höhlennetze Stufe 3																										& 229 & 429 & 346 & 392 & 613 \\
+  Anzahl Vertices											& 79594& 136054 & 95790 & 130910 & 225497\\
+  Anzahl Dreiecke											& 180488& 296248 & 200512 & 293900 & 416378\\
+  \rowcolor{FarbeZeit}
+  Reduktion Höhlennetze Stufe 4																										& 189 & 358 & 302 & 331 & 462 \\
+  Anzahl Vertices											& 54817& 93064 & 68611 & 93689 & 134969\\
+  Anzahl Dreiecke											& 130934& 210268 & 146154 & 219458 & 235322\\
+  \hline
+  \hline
+  \rowcolor{FarbeZeit}
+  Restliche Berechnungen																													& 517 & 528 & 519 & 524 & 552 \\
+   \rowcolor{FarbeZeit}
+  Gesamt																																					& 26755 & 12773 & 15814 & 12548 & 24904 \\
+  \hline
+\end{tabular}
+\caption{Laufzeiten und weitere Daten für die Generierung von Dungeons}
+ {Laufzeiten sind grün unterlegt und jeweils in Millisekunden angegeben. \\
+ Gemessen auf: \emph{Prozessor}: AMD Phenom II X4 945, 3 Ghz , \\ \emph{RAM}: 3,25 GiB Dual Channel
+ DDR2-800 , \\ \emph{Betriebssystem}: Microsoft Windows 7 Professional 64 Bit mit Service Pack 1}
+ \label{T_MessDungeon}
+\end{table}
+
+\ \\
+Beim Entwurf von Dungeons ist es sinnvoll, zuerst die Höhle zu erstellen und zu verfeinern.
+Erst dann, wenn die Höhle die gewünschte Struktur aufweist,
+sollten die Parameter für die Generierung der Gänge und Räume entsprechend anpasst werden.
+
+Bei der Konstruktion von Höhlen zeigt sich, dass L-Systeme der Form
+$G=\langle \{\cdots\},F,$ $\{F \rightarrow \left(F,+,-,o,u,g,z\right)^*\} \rangle$
+relativ oft zu realistisch anmutenden Höhlen führen (siehe hierzu Beispiel \ref{B_DungeonBsp3} und \ref{B_DungeonBsp4}).
+Die Winkel sollten dabei möglichst unregelmäßig gewählt werden, d.h. keine Vielfachen von $90^\circ$.
+Bei Verwendung von nur $'+','-'$ als Symbole für Drehungen entstehen ebene Höhlen.
+Bei zusätzlicher Verwendung von $'o','u','g','z'$ ist das Höhlenskelett in alle Dimensionen ausgedehnt.
+Symbol $'\$'$ kann dabei helfen, eine sonst sehr unebene Höhle ebener zu gestalten (vgl. Beispiel \ref{B_DungeonBsp1}).
+Der Einsatz von Erosion ist nicht zwingend erforderlich, sondern von der Art der gewünschten Höhle abhängig.
+Gleiches gilt für die Filterung schwebender Fragmente.
+
+Bei der Konstruktion des restlichen Dungeons sollte zunächst die Wahl der Sektorgröße abhängig von der Höhlenbeschaffenheit durchgeführt werden.
+Falls z.B. mittlere Freiräume ausgenutzt werden sollen (vgl. Beispiel \ref{B_DungeonBsp2}), muss die Sektorgröße entsprechend klein gewählt werden.
+Die Skalierung der Subszenen ist dabei entsprechend anzupassen, damit diese gut in die Sektoren passen.
+Als Faktor $g$ für die Stärke der Gangsplineableitungen zeigen Werte zwischen $0,5$ und $1,5$ gute Resultate.
+Parameter $R$ und $F$ für den Abstandstest zum Boden sollten nach Abhängigkeit von der Höhlenstruktur angepasst werden,
+bei größeren Zeichenradien oder dem Anwenden von Erosion sind u.U. höhere Werte sinnvoll.
+
+\section{Weitere Probleme}
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=14cm]{Bilder/Screenshot_Bug_Luecken}
+	\caption[Lücken bei Raumadaptern]{\emph{Lücken bei Raumadaptern}: Hintergrundfarbe ist Weiß.
+	Zu sehen ist ein schmaler weißer Spalt zwischen Adapter und umschließender Raumgeometrie.
+	}
+	\label{B_BugLuecken}
+\end{figure}
+
+%Dieses Problem betrifft die aktuell verwendeten 3D-Modelle der Subszenen:
+\noindent An Adaptern mit Anschluss an Räumen kann es zu feinen Lücken zwischen Raum und Adapter kommen, siehe Abbildung \ref{B_BugLuecken}.
+Diese Lücken sind bei kontrastreichem Hintergrund zu erkennen.
+Blendet man die Raumgeometrie aus und löscht den dem Adapter zugrundeliegenden Andockstellenmesh nicht,
+so sind keine Lücken zwischen Adapter und Andockstellenmesh sichtbar.\footnote{Bei ausgeschaltetem Antialiasing.
+Bei aktiviertem Antialiasing können dennoch Artefakte auftreten. Ursache:
+Die für diese Arbeit erstellten Subszenen haben in ihren Materialeigenschaften das Flag "`Antialiasing"' nicht aktiviert,
+da die verwendete IrrEdit-Version dies nicht unterstützt.
+Daher wird das Antialiasing nicht auf sie angewendet, sondern nur auf den Adapter.
+Dies führt zu Artefakten an den gemeinsamen Kanten.}
+Die Lücken bestehen also schon zwischen Andockstellenmesh und der umschließenden Subszenengeometrie.
+Sie sind somit bereits in der importierten .irr-Szene enthalten.
+Ungenauigkeiten beim Zusammenbau der jeweiligen Szenen im genutzten Szeneneditor Ambiera IrrEdit konnten durch Betrachtung der exportierten Daten ausgeschlossen werden.
+Ursache sind demnach Ungenauigkeiten beim Modelling und Export der 3D-Daten aus dem verwendeten 3D-Modelling-Progamm Autodesk 3DS Max 2010.\footnote{Die
+Andockstellenmeshes und die umschließende Subszenengeometrie wurden größtenteils aus den gleichen Ausgangsobjekten mittels
+unterschiedlich verknüpften CSG-Operationen erstellt.}
+%oder Ungenauigkeiten beim Zusammenbau und Export der Szene aus dem verwendeten Szeneneditor IrrEdit.
+Eine mögliche Lösung wäre die Schaffung eines Plugins
+zur Modellierung sowie Export von Andockstellen und umgebender Geometrie für das jeweilig benutzte 3D-Modelling-Programm.
+%die Nutzung eines eigenen Szeneneditors sowie 
+
+%- die Ursache ist wahrscheinlich numerischer Natur
+%- wenn man die Andockstellenmeshes nicht löscht sind trotzdem feine Lücken sichtbar siehe Abbildung !!!(b)
+%- eine Fehlerursache ist somit vermutlich der zu ungenaue Export der Meshes aus dem verwendeten 3D-Modelling-Programm 3DS Max
+%  - Adapter und umschliessende Andockgeometrie (Wand) werden hier als separate Meshes exportiert  
+%- dieser Fehler durch Transformationen weiter verstärkt
+%- insbesondere durch die Tatsache, dass die Transformation der Andockstelle schon auf der CPU berechnet wird,
+%die Transformation des Raums aber ausschließlich auf der GPU beim Zeichnen
+
+%Bild: v.l.n.r.
+%(a) ScreenshotBugLuecken
+%(b) ScreenshotBugLueckenADSeingeblended
+%
+%Fakten:
+%
+%- Lücken sind nicht sichtbar, wenn statt dem Raum die ADS-Meshes eingeblendet sind
+%- leichtes Durchflimmern des Hintergrunds bei gleicher Variante und anschaltetem Antialiasing
+% -> Ursache: Antialiasing wird nicht auf Meshes der Subszenen angewandt, diese werden per Irrlicht Standardmaterial ohne Effekte gerendert
+% ** bei den hier erstellten Test-Subszenen!!
+%
+%- Lücken ansonsten durch ungenauen Export aus 3DS Max,
+%-> Divergenz zwischen Andockstellenmesh und ungebender Wand
+%** eventuell auch zu ungenaues Modelling?
+
+%Code zum Test (Szene.cpp):
+%ueberfluessigeGeoNode = SceneManager->getSceneNodeFromName("Nord_offen",tempSceneNode);
+%if (ueberfluessigeGeoNode!=NULL) ueberfluessigeGeoNode->remove();
+%ueberfluessigeGeoNode = SceneManager->getSceneNodeFromName("Nord_geschlossen",tempSceneNode);
+%if (ueberfluessigeGeoNode!=NULL) ueberfluessigeGeoNode->remove();
+%ueberfluessigeGeoNode = SceneManager->getSceneNodeFromName("Ost_offen",tempSceneNode);
+%if (ueberfluessigeGeoNode!=NULL) ueberfluessigeGeoNode->remove();
+%ueberfluessigeGeoNode = SceneManager->getSceneNodeFromName("Ost_geschlossen",tempSceneNode);
+%if (ueberfluessigeGeoNode!=NULL) ueberfluessigeGeoNode->remove();
+%ueberfluessigeGeoNode = SceneManager->getSceneNodeFromName("Sued_offen",tempSceneNode);
+%if (ueberfluessigeGeoNode!=NULL) ueberfluessigeGeoNode->remove();
+%ueberfluessigeGeoNode = SceneManager->getSceneNodeFromName("Sued_geschlossen",tempSceneNode);
+%if (ueberfluessigeGeoNode!=NULL) ueberfluessigeGeoNode->remove();
+%ueberfluessigeGeoNode = SceneManager->getSceneNodeFromName("West_offen",tempSceneNode);
+%if (ueberfluessigeGeoNode!=NULL) ueberfluessigeGeoNode->remove();
+%ueberfluessigeGeoNode = SceneManager->getSceneNodeFromName("West_geschlossen",tempSceneNode);
+%if (ueberfluessigeGeoNode!=NULL) ueberfluessigeGeoNode->remove();
+%ueberfluessigeGeoNode = SceneManager->getSceneNodeFromName("Basisraum",tempSceneNode);
+%if (ueberfluessigeGeoNode!=NULL) ueberfluessigeGeoNode->remove();
+%
+%zusätzlich: ADS-Mesh löschen auskommentieren (SubSzene.cpp)
+
+\section{Zusammenfassung und Bewertung}
+
+% auch kritische Bewertung:
+%Gitterstruktur weiteraufbrechen
+
+Das entwickelte Verfahren zur Erstellung von Dungeons folgt dem natürlichen Entstehungsprozess:
+Zuerst findet die Generierung der Höhle statt, danach erfolgt das Hinzufügen von Gängen sowie Räumen.
+
+Das Vorgehen für die Höhlenerstellung basiert auf Lindenmayer-Systemen.
+Als Erstes erfolgt die Generierung von Turtle-Grafik-Zeichenanweisungen auf der Basis eines L-Systems.
+Die L-Systeme zur Vorgabe der Höhlengrundstrukturen ermöglichen hierbei realistisch anmutende Höhlensysteme.
+Dann findet das Zeichnen der Struktur im Voxelraum statt.
+%Dieser ermöglicht es, sich selbst überlagernde Strukturen problemlos umzusetzen.
+Danach wird eine Nachbearbeitung per Erosion und dem Herausfiltern schwebender Fragmente durchgeführt,
+um die entstandenen Strukturen realitätsnaher zu gestalten.
+
+Unter Ausnutzung der Voxel-Informationen werden Räume um die Höhle herum platziert
+und Gänge zwischen Räumen und der Höhle verlegt.
+Die Räume werden als Kopien vorgefertigter Szenen angelegt und ermöglichen so die Einbindung eigener Dungeonteile.
+Die Gänge sind polygonale Schläuche, die dem Verlauf kubischer Hermite-Splines folgen.
+Hierdurch sind gewundene Gangstrukturen möglich.
+
+Die Voxelhöhle wird danach in ein Dreiecksnetz umgewandelt, welches aus mehren Subnetzen besteht.
+Bei der Umwandlung werden die Koordinaten der Eckpunkte verwackelt.
+Der Verwacklungsprozess kann zur Glättung der entstehenden Netze eingesetzt werden.
+Die entstehenden Strukturen ergeben zerklüftete Höhlen.
+Diese ließen sich in Verbindung mit prozeduralen Texturen realistischer gestalten.
+
+Für die Verwendung von Techniken des Culling und des Level of Detail werden Information zum Aufbau eines Sichtbarkeitsgraphen generiert.
+Diese geben an, welche Dungeonbestandteile mit welchen anderen wie verknüpft sind
+und welche Sichtbarkeitseigenschaften die Dungeonteile besitzen.
+Die Dreiecksnetze der Gänge und der Höhle werden für die Erstellung niedrigerer Detailstufen reduziert.
+Die Reduktion der Gangnetze ist qualitativ hochwertig, die der Höhlennetze noch nicht.
+Hier verhindern insbesondere Mesh Foldover bei zunehmenden Reduktionsstufen hohe Darstellungsqualität.
+
+Die generierten Dungeons sind visuell ansprechend und lassen sich in Computerspielen verwenden.
+Die Höhlen sind realen Höhlen ähnlich, wie ein Vergleich der Lavahöhle aus Abbildung \ref{B_Hoehlenbsp}(b)
+und den erodierten Höhlen aus Abbildung \ref{B_DungeonInnenBsp1} zeigt.
+Andere Höhlenarten lassen sich durch Modifizierung von L-Systemen, Erosion und Texturierung bilden.
+Die erstellten Gänge sind geschwungen und für Dungeons sehr gut geeignet.
+Die entworfenen und implementierten Algorithmen sind effizient in Laufzeit und Speicherbedarf.
+Dungeons lassen sich i.d.R. in weniger als einer Minute komplett erstellen.
+
+Die fertig erstellten Dungeons lassen sich exportieren.
+Allerdings sind die exportierten Wavefront OBJ-Meshes sehr speicherplatzintensiv, da sie als Text und nicht binär gespeichert werden.
+Damit benötigt auch der Gesamtdungeon viel Speicherplatz zur Ablage.
+Als Lösung ergibt sich hier zum einen die Verwendung eines anderen Exporters (binäres Format statt Text, z.B. 3DS\footnote{Allerdings besitzt Irrlicht keinen 3DS-Exporter.}).
+Auch könnte der Dungeongenerator als Programmbibliothek verwendet werden.
+Der gesamte Dungeon ließe sich dann bei Bedarf aus einer XML-Konfigurationsdatei deterministisch generieren,
+wodurch der benötigte Speicher zur Ablage der Dungeons extrem reduziert wäre.\footnote{I.d.R. werden statt über 100 MiB beim OBJ-Export nur noch $\sim$15 KiB benötigt.}
+Die Generierungsgeschwindigkeit der Algorithmen reicht aus, um diese Methode praktikabel zu verwenden.
+
+\section{Ausblick}
+
+Die Parameter der L-Systeme, insbesondere die Winkel, könnte man beim Zeichnen zufällig variieren,
+um weitere Möglichkeiten zur Vorgabe von Höhlenstrukturen schaffen.
+Die Erosion im Voxelraum lässt sich besser steuerbar und realistischer gestalten,
+indem die Erosionswahrscheinlichkeit für jede Richtung (oben, unten, ...) einzeln festlegbar ist.
+
+Eine bessere Aufteilung bei der Zerlegung der Höhle in Subnetze ist wünschenswert.
+Statt eines Octrees wäre ein Verfahren, welches die Struktur der Höhle besser einbezieht, geeigneter.
+So wären weniger Grenzvertices nötig und eine bessere Aufteilung für den Sichtbarkeitsgraphen möglich.
+Die Sektoraufteilung für die Raumplatzierung lässt sich ebenfalls adaptiv gestalten.
+Die Aufteilung in Sektoren würde nicht per Raumgitter erfolgen, sondern auch hier die Struktur der Höhle einbeziehen.
+
+Die Heuristik zum Finden geeigneter Andockpositionen kann weiter verbessert werden.
+Beispielsweise ließe sich zusätzlich der Bereich links und rechts der Andockposition betrachten, statt nur der Bereich in Richtung Boden.
+Beim Andockvorgang von Gängen an die Höhle lässt sich der Querschnitt exakter ausfräsen.
+Statt der Verwendung eines quadratischen Andockbereiches könnte man hier den Gangquerschnitt per Voxeln abbilden.
+Weiterhin sinnvoll ist das Zulassen beliebiger Andockrichtungen, nicht nur entlang der X- bzw. Z-Achse.
+
+Prozedurale Räume und prozedurale Detailobjekte sind ebenfalls denkbar.
+Die Räume könnten ähnlich dem Verfahren zur Generierung prozeduraler Gebäude aus \cite{T_MasterJanusch} ebenfalls mit L-Systemen erstellt werden.
+Auch eine "`beliebige"' Anzahl von Andockstellen für Räume wäre möglich.
+Die Platzierung von Detailobjekten in Höhlen, beispielsweise Statuen an Gangmündungen oder Monster und Fallen auf relativ ebenen Flächen,
+ist ein weiterer Fortführungspunkt.
+Dafür ließen sich die Informationen aus dem Voxelraum bzw. für Gangmündungen zusätzlich die direkten Splineparameter nutzen.
+Denkbar wären Parameterangaben wie: Objekt mit Ausdehnung $X\times Y \times Z$ soll $N$ Voxel über dem Boden platziert werden, mit einer Toleranz von $M$ Voxeln.
+
+Statt nur die Höhlenvertices zu verwackeln, könnte auch der Querschnitt des Gangs optional verwackelt werden.
+Auch das Ausprobieren und Vergleichen anderer Umwandlungstechniken von Voxeln in Dreicksnetze,
+wie beispielsweise des Marching Cubes-Algorithmus \cite{lorensen1987marching}, ist denkbar.
+Andere Zufallsgeneratoren, separat für jeden Teil des Dungeongenerators, könnten getestet werden.
+
+Die Texturierung der Höhle durch prozedurale 3D-Texturen sollte weiter betrachtet werden.
+Die Feinstruktur der Höhle lässt sich beispielsweise durch prozedurale 3D-Displacement-Texturen verbessern.
+Zusätzliche Untersuchungen bezüglich Reduktionstechniken für Dreiecksnetze sind notwendig,
+besonders um mit wenig Rechenaufwand Mesh Foldover verhindern zu können.
+
+%- Streckung in XY-Ebene (bzw. Stauchung entlang Z-Achse): Hauptbewegungsebene der Spielfigur
+%- danach Reduzierung des Netzes in gewünschte Auflösung ? -> bei einstellbarer Abtastung nicht unbedingt nötig (unperformanter), allerdings Ausprobieren sinnvoll	
+%	- hierbei darauf achten, dass eventuelle Objekte immer noch korrekt platziert sind (nicht in der Wand verschwindend oder zu weit davor)
+%- freiere Platzierung von Räumen (bessere Ausnutzung von Lücken der Höhle)
+	
+
+%Weitere Untersuchungen zu Höhlenstrukturen?
+

@@ -1,0 +1,139 @@
+\chapter{Export}
+\label{KA_Export}
+
+Der Export des Dungeons erfolgt als (a) .irr-Datei für die komplette Dungeon-Szene,
+(b) Wavefront OBJ-Dateien für die erstellten Höhlen- und Ganggeometrien sowie
+(c) Zusatzinformationen zum Aufbau des Sichtbarkeitsgraphen als XML-Datei.
+Zur weiteren Verwendung der exportierten Daten müssen sich alle im Folgenden genannten Dateien
+sowie die in den genutzten Subszenen enthaltenen Texturen und Meshes im gleichen Ordner befinden
+und auch so weitergegeben werden.
+
+\ \\
+Die Benennung der .irr-Szenendatei erfolgt als: \emph{"`[Dungeonname].irr"'}. \\
+Der Aufbau des Szenegraphen der exportierten Dungeon-Szene wird im Folgenden dargestellt.
+Die Benennung und ID's zum Wiederauffinden jedes Dungeonbestandteils sind
+dabei geschrieben als \emph{(Benennung, ID)}.
+Eine ID von -1 bedeutet, dass keine explizite ID vergeben wird, eine ID-Angabe von
+0++ bedeutet aufsteigende ID's, beginnend mit 0. \\
+
+\begin{compactitem}
+	\item \emph{(Dungeon,-1)} $\Rightarrow$ kompletter Dungeon
+	\begin{compactitem}
+			\item \emph{(Raeume,-1)} $\Rightarrow$ alle Räume
+				\begin{compactitem}
+						\item \emph{([gewählte Benennung],0++)} $\Rightarrow$ nacheinander alle Räume mit ihrer Bezeichnung und ihren ID's
+				\end{compactitem}
+				
+			\item \emph{(GangDetailstufe,0++)} $\Rightarrow$ alle vorhandenen Detailstufen der Gänge
+				\begin{compactitem}
+						\item \emph{(Gang,0++)} $\Rightarrow$ nacheinander alle Gänge mit ihren ID's
+				\end{compactitem}
+			\item \emph{(GangAdapter,-1)} $\Rightarrow$  alle vorhandenen Gangadapter
+				\begin{compactitem}
+						\item \emph{(Adapter0,0++)} $\Rightarrow$ nacheinander alle Adapter an Ende $\vv{P(0)}$ des Gangs mit der zum Gang gehörigen ID
+						\item \emph{(Adapter1,0++)} $\Rightarrow$ nacheinander alle Adapter an Ende $\vv{P(1)}$ des Gangs mit der zum Gang gehörigen ID
+				\end{compactitem}
+				
+			\item \emph{(Detailobjekte,-1)} $\Rightarrow$  alle vorhandenen Detailobjekte
+				\begin{compactitem}
+						\item \emph{(DetailobjektAnGang,0++)} $\Rightarrow$ nacheinander alle Detailobjekte des Gangs mit der zum Gang gehörigen ID
+						\begin{compactitem}
+								\item \emph{([gewählte Benennung],0++)} $\Rightarrow$ nacheinander alle Detailobjekte mit ihrer Benennung, die ID's werden von $\vv{P(0)}$ bis $\vv{P(1)}$ aufsteigend gezählt
+						\end{compactitem}
+				\end{compactitem}
+				
+			\item \emph{(HoehlenDetailstufe,0++)} $\Rightarrow$ alle vorhandenen Detailstufen der Höhle
+				\begin{compactitem}
+						\item \emph{(Hoehlenteil,0++)} $\Rightarrow$ nacheinander alle Subnetze der Höhle mit ihren ID's
+				\end{compactitem}
+	\end{compactitem}	 
+\end{compactitem}	 
+
+\ \\
+Die Benennung der exportierten Höhlengeometrien erfolgt als: \\
+\emph{"`[Dungeonname]\_HoehlenMesh\_[SubnetzID]\_Detailstufe\_[DetailstufenNummer].obj"'}. \\
+Die Benennung der exportierten Gangmeshes erfolgt als: \\
+\emph{"`[Dungeonname]\_Gang\_[GangID]\_Detailstufe\_[DetailstufenNummer].obj"'}. \\
+Die Benennung der exportierten Adaptermeshes erfolgt als:\\
+\emph{"`[Dungeonname]\_Gang\_[GangID]\_Adapter\_[0 bzw. 1].obj"'}. \\
+Zu den OBJ-Meshes zugehörig ist die ebenfalls erzeugte Datei \emph{"`DungeonBasisMaterial.mtl"'}, die ein Standardmaterial enthält.
+
+\ \\
+Die Benennung der Datei für die Zusatzinformationen erfolgt als: \\
+\emph{"`[Dungeonname]\_Zusatzinformationen.xml"'}. \\
+Der Aufbau der Zusatzinformationen ist Folgender:
+
+\lstset{tabsize = 2, basicstyle=\footnotesize}%,  escapeinside={<!--}{-->)} } %,language=XML}
+\begin{lstlisting}
+<DungeonInformationen>
+	<Raueme>
+	  <!--Aufzählung aller Räume:-->
+		<Raum ID="[ID des Raums]">
+			<GangIDs Gang0Nord="[ID des angeschlossenen Gangs, bzw. -1 für keinen]"
+				Gang1Ost="[...]" Gang2Sued="[...]" Gang3West="[...]" />
+		</Raum>
+	</Raueme>
+		
+	<Gaenge GangBreite="[Breite der Gänge in Voxeln]">
+		<!--Aufzählung aller Gänge:-->
+		<Gang ID="[ID des Gangs]"
+			DefinitivBlickdicht="[0 oder 1]">
+			<RaumIDs RaumAndockstelle0="[ID des angeschlossenen
+				Raums, bzw. -1 für Höhle]"	 RaumAndockstelle1="[...]" />
+			<Position0 X="[...]" Y="[...]" Z="[...] />
+			<Position1 X="[...]" Y="[...]" Z="[...]" />
+			<Ableitung0 X="[...]" Y="[...]" Z="[...]" />
+			<Ableitung1 X="[...]" Y="[...]" Z="[...]" />
+		</Gang>
+	</Gaenge>
+	
+	<Hoehle>
+		<!--Aufzählung aller Höhlensubnetze:-->
+		<HoehlenTeil ID="[ID des Subnetzes]">
+			<VoxelMin X="[Min X des zugehörigen Voxelgebietes]"
+				Y="[...]" Z="[...]" />
+			<VoxelMax X="[...]" Y="[...]" Z="[...]" />
+			<BlickdichtNegativeRichtung X="[kann nicht nach X-negativ
+				gesehen werden? 0 oder 1]" Y="[...]" Z="[...]" />
+			<BlickdichtPositiveRichtung X="[...]" Y="[...]" Z="[...]" />
+		</HoehlenTeil>
+	</Hoehle>	
+</DungeonInformationen>	
+\end{lstlisting}
+
+%\subsubsection{Formate}
+%- Export: Dateien als Archiv exportieren
+%* 3D-Modelle (Levelstücke)
+%* eventuell Texturen (wenn keine Standardtexturen)
+%* zusätzliche Daten (Abstandsmatrix etc.)
+%* bei Zusatzobjekte (Detail, Interaktion) speichern in welchem Gebiet
+%* Szenendatei (Irrlicht)
+%- Detailobjekte per ID-Nummer und Name im Szenegraph auffindbar -> 
+%Verwendung als Interaktionsobjekte wie in \cite{T_BachelorHoenig}
+%- XML-Beschreibung (DTD)
+
+\subsubsection{Weitere Exportmöglichkeiten}
+
+Die Höhle lässt sich auch einzeln in einer OBJ-Datei mit frei wählbarem Dateinamen exportieren.
+Alle Höhlensubmeshes werden dabei in diese Datei geschrieben.
+Die Datei \emph{"`DungeonBasisMaterial.mtl"'} wird hier ebenso erzeugt und ist zur OBJ-Datei zugehörig.
+
+\ \\
+Die aus L-Systemen erzeugten Turtle-Grafik-Zeichenanweisungen lassen sich ebenfalls exportieren.
+Als Dateiformat wird XML verwendet.
+Die zum Zeichnen relevanten Parameter werden ebenfalls gespeichert.
+Der Dateiaufbau gestaltet sich wie folgt:
+
+\begin{lstlisting}
+<LSystemAbleitungen>
+	<LSystemParameter>
+		<Winkel WinkelGier="[...]" WinkelNick="[...]" WinkelRoll="[...]" />
+		<Radius StartRadius="[...]" RadiusFaktor="[...]"
+			RadiusDekrementor="[...]" />
+	</LSystemParameter>
+	
+	<!--alle generierten Ableitungen, beginnend mit Iteration 0:-->
+	<Iteration Nummer="[Iterationsstufe]"
+		String="[Generierter String]" />		
+</LSystemAbleitungen>		
+\end{lstlisting}

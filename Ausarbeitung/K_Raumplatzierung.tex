@@ -1,0 +1,779 @@
+\chapter{Hinzufügen von Räumen und Gängen zum Dungeon}
+\label{K_Architekt}
+
+%Architekt:
+%- Platziert Räume 
+%- verbindet mittels Gängen:
+%  - Raum mit Höhle
+%  - Raum mit Raum 
+Aus der erzeugten Höhle soll die Konstruktion des Dungeons mittels Gängen und Räumen erfolgen.
+Diese sollen um die Höhle herum angeordnet sein und mit dieser verbunden werden.
+%Gegeben: Höhle im Voxelraum
+%Gesucht: Gänge und Räume um die Höhle herumplatziert und mit ihr verbunden
+Das Verfahren dazu besteht aus vier Schritten.
+
+\ \\
+\emph{Erster Schritt}: Der Voxelraum wird in Sektoren unterteilt.
+Dazu ist die Erweiterung des bisherigen Voxelraums, in dem die Höhle gezeichnet werden kann, nötig.
+Dieser bisher betrachtete Voxelraum sei als \emph{Normalvoxelraum} bezeichnet.
+Der Normalvoxelraum wird in jeder Richtung unendlich weit erweitert.
+Alle Voxel, die nicht im Normalvoxelraum liegen, seien grundsätzlich mit $0$ belegt.
+%- der erweiterte Voxelraum sei als \emph{Gesamtvoxelraum} bezeichnet
+
+Die Aufteilung des Voxelraums erfolgt in $S_x \times S_y \times S_z$ Sektoren.
+Gefordert ist ein Zentralsektor, also eine ungerade Anzahl an Sektoren entlang jeder Dimension $X$, $Y$ und $Z$.\footnote{Diese
+Anforderung beruht auf der Annahme, dass so mögliche zentrale Freiräume der Höhle besser erkannt und genutzt werden können.}
+Die Mitte des Zentralsektors soll dabei in der Mitte des Normalvoxelraums liegen.
+Es sollen mindenstens zwei Sektoren Rand um den Normalvoxelraum bzgl. der X- und Z-Koordinate bestehen,
+damit um die Höhle herum genügend Platz für die Räume des Dungeons ist. %\\
+%
+Mit einer Sektorausdehung $A$ entlang jeder Dimension und einer Ausdehnung des Normalvoxelraums von $V_x \times V_y \times V_z$ 
+ergibt sich dadurch als Anzahl der Sektoren entlang einer Dimension (hier $X$, $S_z$ äquivalent, bei $S_y$ ohne Aufaddierung des Randes):
+\begin{equation}
+ \begin{aligned}
+		S_x = \begin{cases} 
+							\left\lceil \frac{V_x}{A}\right\rceil + 4 & falls\ \left\lceil \frac{V_x}{A}\right\rceil\ ungerade \\ 
+							\left\lceil \frac{V_x}{A}\right\rceil + 5 & sonst
+					\end{cases}			
+	\end{aligned}
+\end{equation}
+
+\ \\
+%Die Sektorkoordinaten liegen im Bereich $[0,S_x-1]\times [0,S_y-1] \times [0,S_z-1]$.
+Ausgehend vom Zentralsektor $\left(\left\lfloor \frac{S_x}{2}\right\rfloor,\left\lfloor \frac{S_y}{2}\right\rfloor,\left\lfloor \frac{S_z}{2}\right\rfloor \right)$
+berechnen sich die Grenzen eines Sektors $(i,j,k)$ dadurch wie folgt (hier Dimension $X/i$, $Y/j$ und $Z/k$ äquivalent):
+\begin{equation}
+ \begin{aligned}
+		Min_x &= \left\lfloor \frac{V_x}{2}\right\rfloor + \left(i-\left\lfloor \frac{S_x}{2}\right\rfloor\right) \cdot A - \left\lfloor \frac{A}{2}\right\rfloor \\
+		Max_x &= Min_x + A - 1
+	\end{aligned}
+\end{equation}
+
+\ \\
+Zwei Sektoren sind benachbart, wenn eine gemeinsame Grenzfläche entlang der X- oder Z-Achse existiert.
+Also hat jeder Sektor bis zu vier Nachbarsektoren: in positiver und negativer X- sowie positiver und negativer Z-Richtung.
+Nachbarsektoren in Y-Richtung existieren im Kontext der Dungeonkonstruktion nicht, da diese Achse die Höhenachse darstellt,
+über die keine Räume direkt benachbart sein sollen. \\
+Nach der Aufteilung in Sektoren werden diese wie folgt charakterisiert: \\
+\begin{compactitem}
+	\item	\emph{Höhle}: Der Sektor enthält mindestens einen Voxel mit Belegung $1$.
+	\item \emph{Höhlennachbar}: Der Sektor ist kein \emph{Höhle}-Sektor, hat aber einen Nachbarsektor der mit \emph{Höhle} charakterisiert ist.
+	\item \emph{Höhlennachbar2}: Der Sektor ist weder \emph{Höhle}- noch \emph{Höhlennachbar}-Sektor,
+														aber ein Sektor in zwei Sektoren Abstand entlang der X- oder Z-Achse ist ein \emph{Höhle}-Sektor.
+	\item \emph{Frei}: Alle anderen Sektoren erhalten diese Charakterisierung.
+\end{compactitem}
+
+\ \\
+\emph{Zweiter Schritt}: Räume in Höhlennähe werden platziert und mit dieser verbunden.
+Dazu laufe über alle Sektoren.
+Wenn ein Sektor \emph{Höhlennachbar} ist, so bestimme per Zufall eine beliebige Subszene.
+Die Möglichkeit zur Wahl keiner Subszene (die leere Subzene) existiert dabei ebenfalls.
+Falls eine nicht-leere Subszene bestimmt wurde, so platziere eine Instanz der Subszene als Raum im Sektor.
+Nun versuche von diesem Raum eine Verbindung per Gang zur Höhle herzustellen,  wobei die Himmelsrichtungen in zufälliger Reihenfolge abgearbeitet werden.
+Falls die Verbindung nicht möglich ist, lösche den Raum wieder und markiere den Sektor mit \emph{Frei}.
+Wenn die Verbindung möglich ist, markiere den aktuellen Sektor mit \emph{Raum} und erstelle den Gang.
+Falls dieser Gang durch einen \emph{Frei}-Sektor verläuft, so markiere diesen Sektor mit \emph{Gang}.
+Nun erstelle, falls möglich, mit Wahrscheinlichkeit $p_{gh}$ weitere Gänge vom Raum zur Höhle, wobei die übrigen Himmelsrichtungen verwendet werden.
+
+Dieser Vorgang wird wiederholt, nur dieses Mal werden \emph{Höhlennachbar2}-Sektoren verwendet.
+Durch diese Aufteilung in zwei Durchläufe werden Sektoren mit direkter Nachbarschaft zur Höhle priorisiert.
+Resultat dieses Schritts sind platzierte Räume, die direkt mit der Höhle durch Gänge verbunden sind.
+
+%teste ob eine Verbindung zur Höhle möglich ist (siehe Kapitel \ref{KK_HoehleAndock}).
+%Wenn nein, dann markiere Sektor mit \emph{Frei} und fahre mit nächstem Sektor fort.
+%Wenn ja, so 
+%Platziere eine Instanz der Subszene als Raum in diesem Sektor und markiere den Sektor mit \emph{Raum}.
+%Erstelle einen Gang vom Raum zur Höhle,
+
+\ \\
+\emph{Dritter Schritt}: Räume neben anderen Räumen werden platziert und mit diesen verbunden.
+Dazu laufe über alle Sektoren und markiere alle diejenigen \emph{Frei}-Sektoren, die Nachbarsektoren eines \emph{Raum}-Sektors sind, mit \emph{Raumnachbar}.
+Nun laufe erneut über alle Sektoren.
+Wenn ein Sektor mit \emph{Raumnachbar} markiert ist, so wähle eine zufällige Subszene aus.
+Falls eine nicht-leere Subszene bestimmt wurde, so platziere eine Instanz der Subszene als Raum in diesem Sektor und markiere den Sektor mit \emph{Raum}.
+Verbinde diesen Raum per Gang zu einem beliebigen, zufällig ausgewählten Raum in einem Nachbarsektor.
+
+Die Markierung per \emph{Raumnachbar} dient dazu, zu verhindern, dass gerade erstellte Räume gleich als potentielle Nachbarräume dienen können.
+Prinzipiell lässt sich dieser Schritt mehrfach durchführen, um ein sehr weit verzweigtes Netz aus Gängen und Räumen zu erhalten.
+In der Implementierung des Dungeongenerators wird nur ein Durchlauf verwendet.
+Resultat des Schritts sind platzierte Räume, die nur mit anderen Räumen, aber nicht direkt mit der Höhle verbunden sind.
+Dennoch sind alle Räume zumindest indirekt mit der Höhle verbunden.
+
+\ \\
+\emph{Vierter Schritt}: Weitere Gänge zwischen Räumen werden eingefügt.
+Laufe über alle Sektoren und prüfe, ob ein Sektor mit \emph{Raum} markiert ist und der Sektor in positiver X-Richtung ebenfalls ein \emph{Raum}-Sektor ist.
+Weiterhin überprüfe, ob noch kein Gang zwischen den Räumen der beiden Sektoren existiert.
+Bei Erfüllung der Bedingungen füge zwischen beiden Sektoren mit der Wahrscheinlichkeit $p_{gr}$ einen Gang ein.
+Führe den gleichen Test in positiver Z-Richtung durch, auch hier wird entsprechend ein Gang eingefügt.
+
+Durch diesen Schritt werden alle potentiellen Gangverbindungen zwischen den bestehenden Räumen des Dungeons getestet und per Zufall neue Gänge eingefügt.
+Resultat sind zusätzliche Gangverbindungen zwischen den Räumen des Dungeons.
+Dieser besitzt nun alle seine Gänge und Räume.
+
+%Platzierungsroutine beschreiben incl. Aufbau des Sektorenraums
+%Scan und Konstruktion des Dungeons
+%Wie werden Räume aus SubSzenen generiert?
+%Wie werden Räume untereinander verbunden?
+
+%================================================================================================
+
+\section{Platzierung von Räumen und Verbindung durch Gänge}
+\label{KK_PlatzVerbRaum}
+
+Nach Auswahl einer Subszene erfolgt die Platzierung des Raums im entsprechenden Sektor.
+Die Ausdehnung des Sektors sei $[Min_x,Max_x]\times[Min_y,Max_y]\times[Min_z,Max_z]$ mit einer Länge von $A$ in jeder Dimension.
+
+Zur Berechnung der Position des Raums wird von der Mitte des Sektors ausgegangen, damit in jeder Richtung möglichst viel Platz für die Gänge bleibt.
+Die Höhenkoordinate $y$ wird per Zufall modifiziert, welches zu Formel \ref{F_RaumPos} führt.
+Die Funktion Zufallswert liefert einen Zufallswert im angegebenen Intervall.
+\begin{equation}
+ \begin{aligned}
+		\vv{Pos}.x &= 0,5 \cdot (Min_x + Max_x) \\
+		\vv{Pos}.y &= Zufallswert[Min_y+ 0,25 \cdot A, Max_y - 0,25 \cdot A] \\
+		\vv{Pos}.z &= 0,5 \cdot (Min_z + Max_z)		
+	\end{aligned}
+	\label{F_RaumPos}
+\end{equation}
+
+\ \\
+Die Bestimmung der Rotation erfolgt ebenfalls per Zufallselement.
+Es findet nur eine Rotation um die Höhenachse $Y$ statt, damit die Räume stets waagerecht bleiben.
+\begin{equation}
+ \begin{aligned}
+		\vv{Rot}.y &= Zufallswert(0^\circ,360^\circ]
+	\end{aligned}
+\end{equation}
+
+\ \\
+Beim Verbinden per Gang wird dieser an derjenigen Andockstelle angedockt, die in Richtung des anderen Raums bzw. des entsprechenden Höhlenbereichs zeigt.
+Die Rotation des Raums erfordert hierzu eine Neubelegung der Himmelsrichtungen der Andockstellen.
+Das Anpassen dieser Himmelsrichtungen $H$ wird folgendermaßen vorgenommen, mit
+$Nord \equiv 0 \equiv X\ positiv, Ost \equiv 1 \equiv Z\ negativ, Sued \equiv 2 \equiv X\ negativ, West \equiv 3 \equiv Z\ positiv$:
+\begin{equation}
+ \begin{aligned}
+		H_{neu} = \begin{cases} 
+								(H_{alt} + 1)\ \text{mod}\ 4 & falls\  45^\circ < \vv{Rot}.y \leq 135^\circ\\ 
+								(H_{alt} + 2)\ \text{mod}\ 4 & falls\  135^\circ < \vv{Rot}.y \leq 225^\circ\\ 
+								(H_{alt} + 3)\ \text{mod}\ 4 & falls\  225^\circ < \vv{Rot}.y \leq 315^\circ\\ 
+								H_{alt} & sonst
+						\end{cases}			
+	\end{aligned}
+\end{equation}
+
+\subsubsection{Gänge aus Andockstellen}
+Die Erstellung eines Gangs erfolgt von einer Andockstelle $1$ zu einer anderen Andockstelle $2$.
+Die Normale von Andockstelle $1$ sei $\vv{N_a}$, der Mittelpunkt $\vv{M_a}$ und der maximale Abstand eines Vertex der Andockstelle zur Ebene,
+mit $\vv{M_a}$ als Punkt der Ebene und $\vv{N_a}$ als Normale der Ebene, sei $W_a$.
+Die Breite des Gangs sei $B$.
+Ein Faktor $g$ für die Stärke der Gangrichtung ist als Parameter im Generatorprogramm festlegbar.
+Für die Erstellung des Gangs werden die Parameter $\vv{P_1}$ und $\vv{P'_1}$ wie folgt bestimmt:
+
+\begin{equation}
+ \begin{aligned}
+		\vv{P_1} &= \vv{M_a} + \vv{N_a} \cdot \left( W_a+B \right) \\
+		\vv{P'_1} &= g \cdot A \cdot \vv{N_a}
+	\end{aligned}
+\end{equation}
+
+\ \\
+Die Einbeziehung von $W_a$ in die Positionsberechnung verhindert ein mögliches Ineinanderschieben von Adapter und Gang.
+Durch Aufaddieren von $B$ wird genügend Platz für die Überblendung der Querschnitte des Adapters erzeugt.
+%\footnote{Dieser Wert erwies sich experimentell als am optimalsten.}
+Die Einbeziehung der Sektorausdehnung $A$ in die Ableitung des Gangsplines bewirkt eine Art Skalierung des Gangs mit dieser.
+$\vv{P_2}$ und $-\vv{P'_2}$ werden auf die gleiche Art und Weise von Andockstelle $2$ bestimmt.
+
+Da die erstellten Andockstellen initial in Richtung Gang zeigen,
+wird für die Erstellung des Adapters an $\vv{P_2}$ des Gangs
+die Normale von Andockstelle $2$ mit $-1$ multipliziert und
+die Reihenfolge der Andockstellenvertices invertiert,
+was einer Spiegelung der Andockstelle entspricht.
+
+%Da Andockstellen initial zum Gang zeigen, wird für die Erstellung der Adapter des Gangs
+%die Normale von Andockstelle $2$ mit $-1$ multipliziert  und
+%die Reihenfolge der Andockstellenvertices invertiert werden, was einer Spiegelung der Andockstelle entspricht.
+
+%- Platzieren von Räumen
+%  - Bestimmung von Rotation, Position und Skalierung
+%  - Anpassen der Himmelsrichtungen
+%- Verbindung Raum mit Höhle (aus Raumsicht, aus Höhlensicht s.u.)
+
+%================================================================================================
+%================================================================================================
+
+\section{Test für Andocken an Höhle}
+%\label{KK_HoehleAndockTest}
+
+Der Platzierungsalgorithmus für Räume und Gänge testet in Schritt $2$, ob Verbindungen zur Höhle möglich sind.
+Als Bedingungen für das Andocken eines Gangs an die Höhle muss die lokale Struktur der Höhle den Anschluss eines Gangs ermöglichen.
+Auch darf der Gang nicht mit der Höhle, Räumen oder anderen Gängen kollidieren.
+%was muss beim Andocken beachtet und deswegen getestet werden?
+
+Als Hilfsmittel für die notwendigen Tests und den eigentlichen Andockprozess werden \emph{Scankarten} verwendet.
+Diese ermöglichen den schnellen Zugriff auf die relevanten Informationen der umliegenden Höhlenteile.
+Das Prinzip einer Scankarte ist in Abbildung \ref{B_Scankarte}(a) dargestellt.
+Alle \emph{Höhlennachbar}- und \emph{Höhlennachbar2}-Sektoren scannen in allen vier Himmelsrichtungen den Voxelraum.
+Der Scan erfolgt zwei Sektoren tief, um in jedem Fall Voxel mit Belegung $1$ zu finden.
+Der Bereich des eigenen Sektors wird ebenfalls in den Scan einbezogen,
+da die Scankarte auf Grund diverser Tests etwas breiter und höher als der eigentliche Sektor ist.
+Somit werden die entsprechenden Teile der Nachbarsektoren mitgescannt.
+
+Der Scan bildet ein Tiefenprofil der Voxelhöhle bezogen auf die jeweilige Richtung.
+Jeder Eintrag der Scankarte berechnet sich wie in Formel \ref{F_Scaneintrag} (Beispiel für Scan in positiver X-Richtung, andere Richtungen äquivalent) angegeben.
+$Offset_y$ und $Offset_z$ sind Offsets, die sich aus den Sektorgrenzen berechnen und die Abbildung der Scankartenkoordinaten auf Voxelkoordinaten ermöglichen.
+%- $Min_x$ und $Max_x$ sind die Sektorgrenzen, Sektorausdehung ist $A$
+Falls kein entsprechendes $k$ existiert, wird der Eintrag auf $\infty$ (bzw. $-\infty$, wenn Scan in negativer Richtung) gesetzt.
+
+\begin{equation}
+ \begin{aligned}
+ \label{F_Scaneintrag}
+		Scan_{x+}(i,j) = \text{min}(k) : Voxel(k,j+ Offset_y,i + Offset_z)=1 \\
+		%\wedge \ k \geq Min_x \wedge k\leq Max_x + 2 \cdot A
+		\wedge \ k \in [Min_x,Max_x + 2 \cdot A]
+	\end{aligned}
+\end{equation}
+
+\ \\
+Jeder Eintrag einer Scankarte besitzt ein Flag \emph{valide}, welches angibt,
+ob der Eintrag noch gültig ist und verwendet werden kann. % oder nicht.
+Anfangs sind alle Einträge valide.
+
+Für den Andockversuch in Himmelsrichtung $H$ wird zunächst ein zufälliger Startindex für die Scankarte von $H$ bestimmt.
+Dann wird getestet, ob ein Andocken an dieser Position möglich ist.
+Wenn ja, wird angedockt, wenn nein, wird der Index weitergezählt.
+Dies wird solange fortgeführt, bis alle Indizes geprüft wurden oder eine gültige Andockposition gefunden wurde.
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=14.5cm]{Bilder/Scankarte}
+	\caption[Generierung und Revalidierung von Scankarten]{\emph{Generierung und Revalidierung von Scankarten}: v.l.n.r.\\	
+	(a) Generierung: Gescannt wird von Höhlennachbar- und Höhlennachbar2-Sektoren in Richtung Höhlen-Sektoren. Scannender Sektor ist orange markiert.\\
+	(b) Revalidierung: Durch den Gang (braun) vom roten Sektor muss
+	eine Scankarte (blau) vom orangenen Sektor revalidiert werden, da der Gang Teile der Höhle verdeckt.}
+	\label{B_Scankarte}
+\end{figure}
+
+\subsection{Filterung der Scankarten}
+\label{KK_Scankartenfilterung}
+
+Der Bereich der Höhle, an dem der Gang andockt, sollte keine zu starken Tiefenunterschiede besitzen, also möglichst eben sein.
+Gesucht ist somit ein Bereich auf der Scankarte mit möglichst kleinen Abweichungen der Einträge.
+Weiterhin müssen $1$-Voxel, d.h. Teile der Höhle, in gesamten Andockbereich vorhanden sein.
+Nicht zulässig sind folglich Einträge mit dem Wert $-\infty$ oder $\infty$.
+
+Beim Test der Andockposition auf der Scankarte wird ein Bereich auf der Scankarte der Breite und Höhe $B+2$ untersucht,
+also der Gangbreite mit einem Voxel Rand in jeder Richtung.
+Der Rand wird verwendet, um potentielle Kollisionen zwischen Adapter und Höhle zu vermeiden, %den Adapter des Gangs höhlenseitig zu umschließen,
+der mögliche Gang würde den Bereich  $[i+1,i+B]\times[j+1,j+B]$ belegen.
+Als maximale Tiefendifferenz für das Andocken wird die Gangbreite $B$ verwendet, wodurch die Toleranz für den Test mit $B$ skaliert.
+Jeder Eintrag der Scankarte im Bereich muss valide sein.
+Als Gültigkeitstest für eine Andockposition $(i,j)$ ergibt sich somit:
+
+\begin{equation}
+ \begin{aligned}
+		G\ddot{u}ltig(i,j) = \begin{cases} 
+													ja & falls\  Max_{scan} - Min_{scan} \leq B \\
+													   & \wedge\  Min_{scan} > -\infty \wedge  Max_{scan} < \infty \\
+													   & \wedge \neg\exists\ Scan(a,b)\equiv invalide\\ 
+													nein & sonst
+												\end{cases} \\
+		mit\  Min_{scan} = \text{min}(Scan(a,b)) \wedge 	Max_{scan} = \text{max}(Scan(a,b)): \\		
+	 % i \leq a \leq i+B+2 \wedge j \leq b \leq j+B+2
+	 a \in [i,i+B+1] \wedge b \in [j,j+B+1]
+	\end{aligned}
+\end{equation}
+
+\ \\
+Im Allgemeinen sind Gänge in Dungeons in Bodennähe mit der Höhle verbunden, anderenfalls kann ein Begehen des Gangs unmöglich sein.
+Dies führt zu der Idee, den Scantest um den Test der Bodennähe zu erweitern
+Der Boden wird durch eine große Tiefe auf der Scankarte im Vergleich zum Bereich darüber gekennzeichnet.
+Auf der Scankarte unterhalb des Andockbereiches muss also eine größere Tiefe vorliegen als im Andockbereich.
+
+%- getestet wird Schicht für Schicht
+Der maximaler Abstand zum Boden sei $R$,
+die gewünschte Minimaltiefe für den Test sei $F$.
+Die Andockposition $(i,j)$ sei gültig bzgl. des Abstands zum Boden wenn Formel \ref{F_Bodenabstand} wahr ergibt.
+Getestet wird hierbei der Bereich direkt unter dem Gang.
+$Min_{scan}$ und $Max_{scan}$ seien die durch den obigen Test bereits ermittelten Werte.
+Das Gesamtverfahren ist in Abbildung \ref{B_AndockTestBasis} illustriert.
+
+\begin{equation}
+ \begin{aligned}
+ \label{F_Bodenabstand}
+	 & Test\ bei\ positiver\ Achsenichtung: \\
+	 & \exists\ b \in [j-R,j-1] \left( \forall a \in [i+1,i+B] \left( Scan(a,b)-Max_{scan} \geq F \right)\right) \\
+	 & Test\ bei\ negativer\ Achsenichtung: \\
+	 & \exists\ b \in [j-R,j-1] \left( \forall a \in [i+1,i+B] \left( Min_{scan}-Scan(a,b) \geq F \right)\right) \\
+ \end{aligned}
+\end{equation}
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=10cm]{Bilder/BodenDecke}
+	\caption[Bestimmung einer gültigen Andockposition]{\emph{Bestimmung einer gültigen Andockposition}: gezeigt wird die Seitenansicht eines Höhlenteils:
+	Im Bereich von $B+2$ wird getestet ob $Max_{scan}-Min_{scan}$ klein genug ist.
+	$R$ und $F$ dienen dem Test, ob die Andockposition in Bodennähe ist.}
+	\label{B_AndockTestBasis}
+\end{figure}
+
+\subsubsection{Revalidierung von Scankarten-Einträgen}
+%- Erweiterung für Andocken an unteren Höhlenbereichen
+Neu erzeugte Gänge und Räume können Höhlenteile für andere Sektoren verdecken.
+Dies ist in Abbildung \ref{B_Scankarte}(b) dargestellt.
+Also müssen nach der Erzeugung neuer Gänge und Räume betroffene Scankarten überprüft und ggf. Teile mit \emph{invalide} markiert werden.
+
+Für den Test wird die Bounding Box des Gangs plus dem Sektor des erstellten Raums als Konfliktgebiet
+$[K_{minX},K_{maxX}]\times[K_{minY},K_{maxY}]\times[K_{minZ},K_{maxZ}]$ genutzt.
+
+\ \\
+Die Erklärung erfolgt am Beispiel für Scankarten in positiver X-Richtung.
+Ein Sektor ist potentiell betroffen, wenn folgende Bedingungen zutreffen: \\
+\begin{compactenum}
+	\item Überschneidung der Scankarte mit $[K_{minY},K_{maxY}]\times[K_{minZ},K_{maxZ}]$
+	\item Grenze des Sektors $Min_x \leq K_{maxX}$, also Überschneidung bzgl. der X-Koordinate
+\end{compactenum}
+
+\ \\
+Für diese Sektoren werden die Scaneinträge überprüft.
+Ein Eintrag ist invalide, wenn er im oder hinter dem Konfliktgebiet liegt,
+d.h. durch das Konfliktgebiet verdeckt wird:
+\begin{equation}
+ \begin{aligned}
+		Scan_{x+}(i,j) \equiv \begin{cases} 
+										invalide & falls\  K_{minX} \leq Scan_{x+}(i,j) \\
+										valide & sonst
+										\end{cases} \\
+	\end{aligned}
+\end{equation}
+
+\ \\
+Durch die Revalidierung der Scankarten werden potentielle Kollisionen der Gänge mit Räumen und anderen Gängen vermieden.
+
+
+%================================================================================================
+
+\subsection{Test auf potentielle Kollision von Gang und Höhle}
+
+Da Gänge und Höhle potentiell kollidieren können, ist ein Kollisionstest Höhle $\Leftrightarrow$ Gang 
+vor dem Erstellen neuer Gänge erforderlich.
+Falls der Test positiv verläuft, soll kein Gang erstellt werden, da eine potentielle Kollision vorliegt.
+Ziel des Tests ist eine \emph{false negative}-Rate von $0$, also soll jede Kollision entdeckt werden.
+Für einen schnellen Test sei eine \emph{false positive}-Rate $>0$ erlaubt.
+Der Adapter kann durch seine Konstruktion nach Kapitel \ref{KK_AndockenHoehle} nicht mit der Höhle kollidieren
+und muss daher nicht in den Test einbezogen werden.
+
+Ein Gang soll in Himmelsrichtung $H$ an die Höhle andocken.
+Im ersten Ansatz wird die Bounding Box des neuen Gangs genutzt und getestet, ob Elemente der $H$-Scankarte
+in die Bounding Box hineinreichen oder sogar davor liegen.
+In diesem Fall könnte der Gang in die Höhle ragen.
+Problematisch ist, dass die Bounding Box keine besonders exakte Approximation des Gangs darstellt.
+Potential für neue Gänge wird hier verschenkt, da die \emph{false positive}-Rate zu hoch ist.
+Eine bessere Approximation wäre wünschenswert.
+
+\ \\
+Wie in \cite[S.210, 425]{salomon2006curves} beschrieben wird, lässt sich ein kubischer Hermite-Spline
+durch eine kubische Bézierkurve darstellen.
+Eine Bézierkurve ist nach \cite[S.178 ff.]{salomon2006curves} durch Formel \ref{F_Bezier} gegeben.
+Die $B_{n,i}(t)$ werden Bernsteinpolynome genannt.
+Die Punkte $\vv{Q_i}$ werden als Kontrollpunkte der Kurve bezeichnet.
+
+\begin{equation}
+ \begin{aligned}
+ \label{F_Bezier}
+		\vv{Q(t)} = \sum\limits_{i=0}^{n} \left( B_{n,i}(t) \cdot \vv{Q_i}\right) \ \ mit\ B_{n,i}(t) =  {n \choose i} t^i (1-t)^{n-i}\ ,\ t\in[0,1]
+	\end{aligned}
+\end{equation}
+
+\ \\
+Die Bézierkurve für vier Punkte ergibt sich dadurch als:
+
+\begin{equation}
+ \begin{aligned}
+		\vv{Q(t)} = (1-t)^3 \vv{Q_0} + 3t(1-t)^2 \vv{Q_1} + 3t^2(1-t) \vv{Q_2} + t^3 \vv{Q_3}
+	\end{aligned}
+\end{equation}
+
+\ \\
+Setzt man die Parameter $\vv{P_1},\vv{P_2},\vv{P'_1},\vv{P'_2}$ des Hermite-Splines auf:
+
+\begin{equation}
+ \begin{aligned}
+ \label{F_BezierHermiteParameter}
+	\vv{P_1} = \vv{Q_0},\ 
+	\vv{P_2} = \vv{Q_3},\ 
+	\vv{P'_1} = 3(\vv{Q_1}-\vv{Q_0}),\ 
+	\vv{P'_2} = 3(\vv{Q_3}-\vv{Q_2}) 
+	\end{aligned}
+\end{equation}
+
+\ \\
+So erhält man eingesetzt in Formel \ref{F_HermitePunkt}:
+
+\begin{equation}
+ \begin{aligned}
+		\vv{P(t)} = &(2t^3-3t^2+1)\vv{Q_0} + (-2t^3+3t^2)\vv{Q_3} \\
+		     	 &+ (t^3-2t^2+t)3(\vv{Q_1}-\vv{Q_0})+(t^3-t^2)3(\vv{Q_3}-\vv{Q_2})\\
+		     = &(1-t)^3\vv{Q_0} + 3t(1-t)^2\vv{Q_1} + 3t^2(1-t)\vv{Q_2} + t^3\vv{Q_3} \\
+		     = &\vv{Q(t)}
+	\end{aligned}
+\end{equation}
+
+\ \\
+Somit ist die Gleichheit von Hermite-Spline und Bézierkurve gegeben.
+Stellt man Formel \ref{F_BezierHermiteParameter} um,
+so erhält man als Punkte $\vv{Q_0},\vv{Q_1},\vv{Q_2},\vv{Q_3}$ der Bezierkurve:
+
+\begin{equation}
+ \begin{aligned}
+	\vv{Q_0} = \vv{P_1},\ 
+	\vv{Q_1} = \vv{P_1} + \frac{\vv{P'_1}}{3},\ 
+	\vv{Q_2} = \vv{P_2} - \frac{\vv{P'_2}}{3},\ 
+	\vv{Q_3} = \vv{P_2}
+	\end{aligned}	
+\end{equation}
+
+\ \\
+Als Eigenschaften der Bernsteinpolynome nach \cite[S.134]{B_GraDV1} gelten:
+Bernsteinpolynome im Intervall $[0,1]$ sind eine Partition der $1$ und stets positiv.
+
+\begin{equation}
+ \begin{aligned}
+		\forall t \in [0,1] &: \sum\limits_{i=0}^{n}  B_{n,i}(t) = 1 \\
+		\forall t \in [0,1] &: B_{n,i}(t) \geq 0		
+	\end{aligned}	
+\end{equation}
+
+\ \\
+Nach \cite[S.71-72]{B_RourkeCompGeo} wird eine konvexe Hülle wie in Definition \ref{D_konvexeHuelle} definiert.
+Die Eigenschaften der $k_i$ entsprechen genau denen der Bernsteinpolynome.
+Somit verläuft eine Bézierkurve bzw. der entsprechende Hermite-Spline innerhalb der konvexen Hülle
+der Punkte $\vv{Q_0},\vv{Q_1},\vv{Q_2},\vv{Q_3}$.
+Diese Eigenschaft kann für den Kollisionstest genutzt werden.
+Wenn die Höhle nicht mit einer den Gang umschließenden Hülle kollidiert, dann auch nicht mit dem Gang selbst.
+
+\begin{TheoremDefinition}[Konvexe Hülle]
+\ \\
+Eine Konvexkombination von Punkten $\vv{Q_0}, \vv{Q_1}, \vv{Q_2}, ..., \vv{Q_n}$ ist definiert als:
+\begin{equation}
+ \begin{aligned}
+		\sum\limits_{i=0}^{n} \left(k_i\cdot \vv{Q_i}\right) \ \ mit\  \sum\limits_{i=0}^{n}k_i = 1 \wedge \forall i: k_i \geq 0
+	\end{aligned}	
+\end{equation}
+Die konvexe Hülle dieser Punkte ist die Menge aller ihrer Konvexkombinationen.
+  \label{D_konvexeHuelle}
+\end{TheoremDefinition}
+
+%================================================================================================
+
+\subsubsection{Schneller Kollisionstest}
+Ziel ist das schnelle Testen aller Scankarteneinträge auf die Kollision mit dem Gang.
+Die konvexe Hülle von $\vv{Q_0},\vv{Q_1},\vv{Q_2},\vv{Q_3}$ umschließt nur den Gangspline, nicht den Gangs selbst.
+Also ist ein Hinzurechnen eines Abstands $G$ zur konvexen Hülle notwendig.
+Dieser berechnet sich aus dem maximalen Gangradius plus Sicherheitsabstand nach Formel \ref{F_KollisionG}.
+Die Gangbreite sei $B$, der Sicherheitsabstand sei $\epsilon$.
+Parameter $\epsilon$ sollte auf Grund der Koordinatenverwacklung der Höhlenvertices mindestens $0,5$ betragen.
+In der Implementierung wurde $\epsilon = 1,0$ gewählt.
+%!!!BILDSKIZZE Wurzel 2 Faktor notwendig, siehe Hefter 21.04.2012
+
+\begin{equation}
+ \begin{aligned}
+		G = \sqrt{2} \cdot 0,5 \cdot B + \epsilon =  \frac{1}{\sqrt{2}} \cdot B + \epsilon
+	\end{aligned}
+	\label{F_KollisionG}
+\end{equation}
+
+\ \\
+Im Folgenden sei das Beispiel für das Andocken in positiver X-Richtung aus Raumsicht gegeben,
+d.h. der Gang verläuft von der Höhle aus in negativer X-Richtung.
+Das Prinzip des Tests wird in Abbildung \ref{B_Pyramide} aufgezeigt.
+Es sei vorausgesetzt, dass $\vv{Q_3}.x < \vv{Q_0}.x$ und $\vv{Q_2}.x < \vv{Q_0}.x$ gilt,
+anderenfalls ist die Andockposition ungültig.
+$\vv{Q_1}.x < \vv{Q_0}.x$  gilt nach Konstruktion (siehe Abschnitt \ref{KK_AndockenHoehle}) immer und braucht nicht getestet zu werden.
+%$Q_1.x < Q_0.x$ gilt nach Konstruktion (siehe Andocken, Abschnitt \ref{KK_AndockenHoehle}) immer und braucht nicht getestet zu werden.
+Für den Test wird eine Pyramide konstruiert, um die konvexe Hülle von $\vv{Q_0},\vv{Q_1},\vv{Q_2},\vv{Q_3}$ zu umschließen.
+Die Anstiege $m_{z+},m_{z-},m_{y+},m_{y-}$ aller vier Seitenflächen der Pyramide werden berechnet.
+Formel \ref{F_KollisionAnstieg} gibt das Beispiel für $m_{y+}$ an, die anderen Ansteige werden äquivalent ermittelt.
+Für das Berechnen der Anstiege werden die Richtungsvektoren $\vv{Q_2}-\vv{Q_0}$ und $\vv{Q_3}-\vv{Q_0}$ verwendet.
+Der Richtungsvektor $\vv{Q_1}-\vv{Q_0}$ zeigt per Konstruktion in Richtung $(-1,0,0)$ %(siehe Abschnitt \ref{KK_AndockenHoehle})
+und entspricht somit dem Anstieg $-\infty$.
+%!!!BILDSKIZZE (siehe Hefter Fr 13.01.2012)
+
+\begin{equation}
+ \begin{aligned}
+ 		\vv{r_1} &= \vv{Q_2}-\vv{Q_0},\ \vv{r_2} = \vv{Q_3}-\vv{Q_0} \\
+ 		m_{y+} &= \begin{cases} 
+								\text{max}\left(\vv{r_1}.x/\vv{r_1}.y,\vv{r_2}.x/\vv{r_2}.y\right) & falls\ \vv{r_1}.y > 0 \wedge \vv{r_2}.y > 0\\
+								\vv{r_1}.x/\vv{r_1}.y & falls\ \vv{r_1}.y > 0 \wedge \vv{r_2}.y \leq 0\\
+								\vv{r_2}.x/\vv{r_2}.y & falls\ \vv{r_1}.y \leq 0 \wedge \vv{r_2}.y > 0\\
+								 -\infty & sonst
+							\end{cases}
+	\end{aligned}
+	\label{F_KollisionAnstieg}
+\end{equation}
+
+\ \\
+Jeder Eintrag $Scan_{x+}(i,j)$ der Scankarte wird getestet,
+ob er innerhalb der auf die Scankarte projizierten Bounding Box $[K_{minY},K_{maxY}]\times[K_{minZ},K_{maxZ}]$ der konvexen Hülle,
+in jeder Dimension um $G$ erweitert, liegt.
+Alle Scankarteneinträge, die darin liegen, %und nicht im Andockbereich für den Gang 
+werden nun in einem zweiten Test auf ihre Position bzgl. der Pyramide getestet.
+Je nach dem, ob diese Einträge links, rechts, oben oder unten vom Gangandockbereich liegen,
+wird die dortige Tiefe der Pyramide unter Verwendung der jeweiligen Anstiege berechnet.
+
+Formel \ref{F_KollisionPy} gibt ein Beispiel für einen Punkt $(i,j)$ auf der Scankarte an,
+der in positiver Z- und positiver Y-Richtung vom Andockbereich liegt.
+Parameter $i+Offset_z$ ergibt die Voxelkoordinate $z$ des Scaneintrags,
+$j+Offset_y$ die Voxelkoordinate $y$.
+Die Position der Pyramidenspitze wird durch $\vv{Q_0}$ definiert.
+$P_h$ ist die resultierende Tiefe der Pyramide.
+%!!!BILDSKIZZE: schneidende Pyramidenseiten -> resultierende Tiefe
+Durch die Einbeziehung von $G$ resultiert ein Pyramidenstumpf als getestete Hülle.
+
+\begin{equation}
+ \begin{aligned}
+ 	P_{hy} &= m_{y+} \cdot (j+Offset_y -\vv{Q_0}.y -G) \\
+ 	P_{hz} &= m_{z+} \cdot (i+Offset_z -\vv{Q_0}.z -G) \\
+  P_h &= \vv{Q_0}.x + G + \text{min}(P_{hy}, P_{hz}, 0)
+	\end{aligned}
+	\label{F_KollisionPy}
+\end{equation}
+
+\ \\
+Diese Tiefe wird mit dem Wert auf der Scankarte verglichen.
+Ist der Scankartenwert kleiner, so liegt möglicherweise ein Teil der Höhle innerhalb des Pyramidenstumpfes.
+Dadurch ergibt sich eine potentielle Kollision und der Gang wird nicht erstellt.
+
+%Die Verwendung einer Pyramdie bzw. eines Pyramidenstumpfes ermöglicht ein schnelleres Testen
+%aller potentiell betroffenen Einträge der Scankarte,
+%als wenn die konvexe Hülle direkt verwendet werden würde.
+
+\begin{equation}
+ \begin{aligned}
+		Kollision(i,j) &= \begin{cases} 
+									ja & Scan_{x+}(i,j) < P_h\\ 
+									nein & sonst
+									\end{cases} \\
+	\end{aligned}	
+\end{equation}
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=13cm]{Bilder/Pyramide}
+	\caption[Test der konvexen Hülle per Pyramide]{\emph{Test der konvexen Hülle per Pyramide}: gezeigt wird die Seitenansicht eines Höhlenteils:
+	Um die konvexe Hülle der Kontrollpunkte $\vv{Q_0},\vv{Q_1},\vv{Q_2},\vv{Q_3}$ des braunen Gangs wird eine Pyramide gelegt. Die roten Voxel liegen im Kollisionsgebiet.\\
+	Anmerkung: $\vv{Q_0}$ liegt ein Stück von der Höhle entfernt, da sich zwischen Gang und Höhle noch der Adapter befindet.
+	%Dieser kann durch sein Konstruktionsprinzip nicht mit der Höhle kollidieren.
+	}
+	\label{B_Pyramide}
+\end{figure}
+
+\ \\
+Als Verbesserungsmöglichkeit für einen exakteren Test könnte man, statt der Verwendung einer Pyramide,
+um die konvexe Hülle zu umschließen, die konvexe Hülle direkt für den Kollisionstest verwenden.
+Die verwendete konvexe Hülle der Kontrollpunkte lässt sich weiter verfeinern:
+Durch den de-Casteljau-Algorithmus \cite[S.136]{B_GraDV1} können weitere Kontrollpunkte errechnet werden.
+Dieser lässt sich prinzipiell beliebig oft anwenden.
+Mit jeder Anwendungsstufe erhält man mehr Kontrollpunkte als in der vorherigen.
+Zudem liegen diese Kontrollpunkte immer näher am eigentlichen Splineverlauf.
+Somit approximiert die konvexe Hülle dieser neu errechneten Punkte die konvexe Hülle des Gangsplines genauer.
+Diese Verbesserungen sind allerdings mit höherem Rechenaufwand verbunden.
+
+%Die konvexe Hülle lässt sich weiter verfeinern, in dem mehr und exaktere Eckpunkte dieser berechnet werden.
+%Dazu kann der verwendet werden ,
+%welcher sich beliebig oft anwenden lässt.
+%Mit jeder Anwendungsstufe kommen weitere Kontrollpunkte hinzu, die gleichzeitig Eckpunkte der konvexen Hülle darstellen.
+
+
+%================================================================================================
+\section{Andocken an Höhle}
+\label{KK_AndockenHoehle}
+
+Beim Andocken des Gangs an die Höhle muss diese angepasst werden, um eine Öffnung für den Gang zu bieten.
+Des Weiteren ist eine Andockstelle für den Gang zu erstellen.
+%Aus den Andockstellenparametern erfolgt die Berechnung der Gangparameter $\vv{P_1}$, $\vv{P'_1}$ bzw. $\vv{P_2}$, $-\vv{P'_2}$
+%mittels der in Kapitel \ref{KK_PlatzVerbRaum} beschriebenen Methode.
+Das Andockverfahren beschreibt Algorithmus \ref{A_AndockenGangHoehle} und ist in Abbildung \ref{B_Andocken} skizziert.
+Angegeben ist das Beispiel für das Andocken in positiver X-Richtung aus Raumsicht, die anderen Richtungen werden äquivalent behandelt.
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=15cm]{Bilder/Andocken}
+	\caption[Andocken an Höhle]{\emph{Andocken an Höhle}: gezeigt wird die Seitenansicht eines Höhlenteils:
+	v.l.n.r (a) Höhle vor dem Andocken mit $Min_{scan}$ (gelb) und $Max_{scan}$ (orange),
+	(b) Höhle nach dem Andocken mit Markierung $10$ (rot), ausgefrästes Stück (blau) und Andockstellenvertices (grün)	
+	}
+	\label{B_Andocken}
+\end{figure}
+
+
+\begin{algorithm}
+\caption{Andocken Gang an Höhle, in positiver X-Richtung}
+\label{A_AndockenGangHoehle}
+\algorithmicrequire{Voxelraum, Scankarte, $Min_{scan},Max_{scan}$,\\ Andockbereich $[i,i+B+1]\times [j,j+B+1]$ mit Gangbreite $B$} \\
+\algorithmicensure{geändertes Voxelgebiet, Andockstelle für Gang}
+\begin{algorithmic}[1]
+
+	\State $X_{min} \gets Min_{scan}-1$ \Comment {Grenzen des zu ändernden Voxelgebietes}
+	\State $X_{max} \gets Max_{scan}-1$
+	
+	\State $Y_{min} \gets j+Offset_y + 1$ \Comment {Bereich in Gangbreite}
+	\State $Y_{max} \gets Y_{min} + B -1$
+	\State $Z_{min} \gets i+Offset_z + 1$
+	\State $Z_{max} \gets Z_{min} + B -1$
+	
+	\State 
+	
+	\State $T \gets \infty$ \Comment {Suche nach nahestem Gangrandstück}
+	\ForAll{$(a,b) \in [i,i+B+1]\times [j,j+B+1]$}  
+	\If{$(a = i) \vee (b = j) \vee (a = i+B+1) \vee (b=j+B+1)$}
+	  \If{$Scan_{x+}(a,b) < T$}
+	    	\State $T \gets Scan_{x+}(a,b)$
+	  \EndIf
+	\EndIf
+	\EndFor
+	
+	\State \Comment {Voxelhöhle für Andocken anpassen}
+	
+	\ForAll{$(x,y,z) \in [X_{min},X_{max}]\times [Y_{min},Y_{max}]\times [Z_{min},Z_{max}]$} 
+		 \If{$x < T$}
+			   \State $Voxel(x,y,z) \gets 10$	\Comment {Bereich markieren}
+		  \ElsIf {$x < Scan_{x+}(z-Offset_z, y-Offset_y)$}
+			    \State $Voxel(x,y,z) \gets 1$  \Comment {Bereich ausfräsen}
+		  \EndIf
+	\EndFor
+	
+	\State 
+	
+	\State $\vv{N_a} \gets (-1,0,0)$	\Comment{Andockstelle erstellen}
+	\State $\vv{M_a} \gets (T ,(Y_{min}+Y_{max}+1)/2,(Z_{min}+Z_{max}+1)/2)$ \Comment{$+1$ durch Voxel zu Vertex}
+	\For{$z = (Z_{max}+1) \to Z_{min}$}
+			\State $\textbf{createAndAdd}\ Vertex(T,Y_{min},z)$	
+	\EndFor
+	\For{$y = (Y_{min}+1) \to Y_{max}$}
+			\State $\textbf{createAndAdd}\ Vertex(T,y,Z_{min})$	
+	\EndFor
+	\For{$z = Z_{min} \to (Z_{max}+1)$}
+			\State $\textbf{createAndAdd}\ Vertex(T,Y_{max}+1,z)$	
+	\EndFor
+	\For{$y = Y_{max} \to (Y_{min}+1)$}
+			\State $\textbf{createAndAdd}\ Vertex(T,y,Z_{max}+1)$	
+	\EndFor
+	
+\end{algorithmic}
+\end{algorithm}
+
+\ \\
+Zuerst werden die Grenzen des zu ändernden Bereich des Voxelraums bestimmt.
+Diese liegen im Gangbereich und $Min_{scan}$, $Max_{scan}$, um einen Voxel verschoben. %Minscan, Maxscan(berechnet wie in Kapitel \ref{KK_Scankartenfilterung})
+
+Dann wird der Randbereich des Andockgebietes untersucht, welcher den zukünftigen Gang höhlenseitig umschließt.
+Die minimale X-Koordinate dieses Bereiches wird bestimmt.
+Diese Koordinate stellt eine Grenze $T$ dar.\footnote{Dieser
+Wert $T$ wird in der eigentlichen Implementierung schon mit $Min_{scan}$ und $Max_{scan}$ zusammen ermittelt.}
+Alles das, was im Gangbereich weiter weg ist, wird "`freigeschaufelt"' bzw. ausgefräst.
+Dieses Ausfräsen findet bis zur Höhlengrenze statt, welche durch die Scankarte bekannt ist.
+Es wird hier kein Bereich innerhalb der bestehenden Höhle verändert, um dortige Strukturen nicht zu entfernen.
+
+Der nähere Bereich bzgl. der Grenze wird als Andockstelle im Voxelraum markiert, mit einer Belegung von $10$.\footnote{Prinzipiell
+sind andere Werte ungleich $0$, $1$ oder $2$ möglich.
+Der Wert $10$ ist aus diversen berechnungstechnischen Gründen vorteilhafter als niedrigere Werte.}
+Dadurch sind im Gangbereich keine $0\Leftrightarrow 1$-Übergänge mehr vorhanden, wodurch dort keine Dreiecke gebildet werden (vgl. Kapitel \ref{KK_Umwandlung}).
+Es entsteht an dieser Stelle also eine Öffnung der Höhle.
+%!!!BILDSKIZZE: Ausfräsbereich s.Hefter 24.11.2011
+
+Dann erfolgt die Bildung der Andockstelle.
+Deren Mittelpunkt liegt in der Mitte des Gangbereiches und auf Höhe der Ausfräsgrenze $T$.
+Die Normale zeigt in die negative X-Richtung, also in Richtung des Sektors, aus dem der Gang kommt.
+Die Vertices der Andockstelle werden im Uhrzeigersinn bezüglich der Normalenrichtung angeordnet und umschliessen genau die entstandene Öffnung.
+Ihre Koordinaten werden nach derselben deterministischen Methode berechnet wie die Vertexkoordinaten der Höhle (vgl. Kapitel \ref{K_VertexkoordinatenBerechnen}).
+Somit werden Gang und Höhle lückenlos miteinander verbunden.
+%!!!BILDSKIZZE: (Andockstelle: Voxel<->Vertex Beziehung n Voxel -> n+1 Vertices)
+%!!!BILDSKIZZE: Andockstelle: Winkel durch Clamping auch bei Verwacklung zirkulär aufsteigend s.Hefter 24.11.2011
+Ein an die Höhle angedockter Gang ist in Abbildung \ref{B_HoehleAngedockt} zu sehen.
+
+\begin{figure}[htbp]
+  \centering  
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_GangHoehle_Hoehle}}
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Screenshot_GangHoehle_Gang}}  
+  \hfill
+	\caption[An Höhle angedockter Gang]{\emph{An Höhle angedockter Gang}: v.l.n.r. (a) aus Höhlensicht, (b) aus Gangsicht}
+	\label{B_HoehleAngedockt}
+\end{figure}
+
+\ \\
+Die Laufzeitkomplexität des gesamten Andockprozesses inklusive Andocktest wird im Wesentlichen von den Tests bestimmt.
+Im Worst Case müssen alle $n$ Positionen auf der Scankarte überprüft werden,
+wobei der Test jeder Position durch den Kollisionstest in $\mathcal O(n)$ liegt.
+Daraus resultiert eine Gesamtkomplexität für die Laufzeit von $\mathcal O(n^2)$ bzw.
+$\mathcal O\left((A+B+R)^2\cdot(A+B)^2\right)$, da die Scankarte eine Ausdehnung von $[A+B+1] \times [A+B+1+R]$ besitzt.
+
+% evtl. erklären warum Ausfräsen und nicht beliebige Rang -> Verhindern von überlappenden Dreiecken
+% bei jetziger Methode nicht möglich -> Beweis
+%\ \\
+%Anmerkung: durch genauere Betrachtung lassen sich die Schleifengrenzen minimal weiter verfeinern.
+%Der Übersichtlichkeit sind diese so wie angegeben dargestellt.
+%Zugriff auf Voxel außerhalb des Voxelraums stellen nicht-definierte Sonderfälle dar
+
+
+%\subsection{Verbinden von Raum mit Höhle}
+%
+%[alt:]
+%Passende Andockstelle an Höhle finden:
+%- Variante 1:
+%	- beim Zeichnen der Voxelhöhle Kandidaten für Andockpunkte mitspeichern:
+%		- unteres Gangende (Strichmitte - up*radius) mit anderer Farbe zeichnen
+%	- diese Andockpunkte später als unterstes Ende des Ganges verwendbar
+%- Probleme:
+%	-	durch Überlagerung der Strich kann ein Andockpunkt mitten in der Höhle liegen und nicht am Boden dieser
+%	
+%- Variante 2:
+%	- sende Strahl mit Gangdicke von Voxelraum-/Gebietsrand in Richtung Voxelhöhle
+%	- bei Treffer:
+%		- verschiebe soweit nach unten wie möglich, um Boden zu treffen
+%		- ermittle passende Gangrichtung: abhängig von der Lage der getroffenen Voxel (diese als eine Ebene mit entsprechender Normale betrachten)
+%		
+%- nach Finden der Andockstelle an der Höhle: eventuell Entfernung von Voxeln im Andockgebiet (wenn erforderlich)		
+%
+%------
+%\subsection{Konkrete Platzierung von Räumen und Gängen}
+%
+%[alt:]
+%	- Unterteilung des Voxelraums in Sektoren (Octree der Umwandlung Voxel->Dreiecksnetz wiederverwendbar)
+% 		- Sektor ist belegt oder frei
+% 	Variante 1: 	
+% 	- für jeden Raum eine Platzierungswahrscheinlichketi angebbar
+% 	  - es existiert auch eine Wahrscheinlichkeit für keinen Raum
+% 	  - alle freien Sektoren werden durchlaufen:
+% 	    - Platzierung eines Raums oder eines Freiraums per Zufall mit entsprechender Wahrscheinlichkeit
+% 	- maximale Anzahl Räume angebbar (-> so oft wird gewürfelt)
+%  Variante 2:
+%  - festgelegte Anzahl für jeden Raum 
+%
+%---
+\section{Grenzen des Verfahrens}
+
+Die Kollision von Gängen bei Raum-zu-Raum-Verbindungen ist i.d.R. unproblematisch, da der Gang nur zwei benachbarte Sektoren verbindet.
+Allerdings sollten nicht zu große Ableitungsfaktoren $g$ verwendet werden, damit der Gang nicht über die Sektorgrenzen hinausragt bzw. in Räume hinein.
+Das Gleiche gilt für die Ableitungsfaktoren $g$ bei der Raum-zu-Höhle-Verbindung.
+Da nur der Bereich der Scankarte getestet wird, also der Sektorausdehnung plus Rand,
+können bei zu ausladenden Gängen eventuell Kollisionen nicht erkannt werden.
+
+Des Weiteren sollte das Verhältnis von Sektorausdehnung und Raumgröße passend gewählt werden.
+Die Sektorausdehnung muss stets größer als die maximale Raumausdehnung sein,
+da sonst Kollisionen zwischen Räumen auftreten können.
+
+	
+%- sinnvoll: Sonderfälle herausfiltern:
+%	- bei denen die begrenzende Seitenflächen nicht alle in die gleiche Richtung bezüglich der Zentralachse laufen
+%	-> Test einfacher (Sicherheitsabstand immer in Richtung Zentralposition dazurechnen, und nicht in die andere Richtung)
+\begin{figure}[htbp]
+  \centering  
+  \subfloat{\includegraphics[width=14cm]{Bilder/Screenshot_Dungeon_komplex}}\\    
+  \subfloat{\includegraphics[width=14cm]{Bilder/Screenshot_Dungeon_einfach}}  
+	\caption[Beispieldungeons von außen]{\emph{Beispieldungeons von außen}:
+	Gezeigt sind durch das beschriebene Verfahren erstellte Dungeons.
+	In Spielen wären solche Dungeons nur von innen erkundbar.
+	}
+	\label{B_BspDungeons}
+\end{figure} 

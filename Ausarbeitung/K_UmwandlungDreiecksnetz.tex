@@ -1,0 +1,629 @@
+\chapter{Umrechnung der Voxelhöhle in Dreiecksnetz}
+\label{KK_Umwandlung}
+
+Die Höhlenstruktur liegt nun als Voxelzeichnung vor.
+Diese soll in ein entsprechendes Dreiecksnetz umgewandelt werden.
+
+Jeder Voxel soll einem Würfel der Kantenlänge $1$ entsprechen,
+wobei ein Voxel mit Position $(x,y,z)$ den Würfel $[x,x+1]\times[y,y+1]\times[z,z+1]$ widerspiegelt.
+Für das Dreiecksnetz sind nur die $0\Leftrightarrow 1$-Übergänge, also die Grenzen des Höhlenfreiraums zu festem Gestein, relevant.
+Jeder dieser Übergänge entspricht einer quadratischen Fläche, die durch zwei Dreiecke dargestellt werden kann.
+Jedes dieser Dreieckspaare benötigt vier Vertices, die allerdings mit anderen Dreieckspaaren geteilt werden können.
+Die Beziehung zwischen Voxeln und Vertices ist in Abbildung \ref{B_VoxelZuVertex}(a) aufgezeigt.
+
+Gesucht ist ein Algorithmus mit der Aufgabe, aus allen Übergängen das resultierende Dreicksnetz zu bilden.
+Dabei ist eine Aufteilung der Höhle in mehrere Subnetze notwendig,
+da die Irrlicht Engine auf maximal $65536$ Vertices pro Meshbuffer begrenzt ist (siehe Kapitel \ref{KK_Dreiecksnetze}).
+Die Aufteilung der Höhle in mehrere Subnetze ist ebenso sinnvoll,
+da sich in Abhängigkeit von Position und Ausrichtung des Betrachters so
+Teile der Höhle leichter ausblenden oder in niedrigeren Detailstufen darstellen lassen.
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=15cm]{Bilder/VoxelZuVertex}
+	\caption[Voxelkoordinaten zu Vertexkoordinaten]{\emph{Voxelkoordinaten zu Vertexkoordinaten}: v.l.n.r. \\
+	(a) einzelner Voxel mit Voxelkoordinaten $(x,y,z)$ mit seinen acht begrenzenden Vertices (grün) und ihren Vertexkoordinaten \\
+	(b) Umwandlung eines Voxelgebildes per Sweepverfahren
+	}
+	\label{B_VoxelZuVertex}
+\end{figure}
+
+%================================================================================================
+%================================================================================================
+\section{Umwandlungsalgorithmus}
+ 
+\emph{Sweep-Verfahren} funktionieren nach dem Prinzip der Dimensionsreduzierung \cite[S.51 ff.]{B_AlgGeo}.
+Ein statisches $d$-dimensionales Problem wird in ein dynamisches $(d-1)$-dimen"-sionales Problem umgewandelt.
+Eine räumliche Dimension wird so zu einer zeitlichen Dimension.
+
+Im Fall des 3D-Raums ergibt sich eine \emph{Sweepebene}. Die zeitliche Dimension ist das Sweep\-en entlang einer Achse.
+Sinn und Zweck von Sweep-Verfahren ist das Reduzieren von Laufzeiten (da weniger Elementbeziehungen gleichzeitig betrachtet werden müssen)
+oder das Einsparen von Speicherplatz.
+Im Umwandlungsalgorithmus wird es zur Reduzierung des benötigten Speicherplatzes verwendet.
+
+Ein \emph{Octree} ist eine Struktur, die ein gegebenes quaderförmiges Raumgebiet in acht kleinere gleichgroße Raumgebiete aufteilt,
+die Oktanten genannt werden \cite[S.237-238]{B_3DGameProg}.
+Die Aufteilung des Raumgebietes erfolgt jeweils mittig des Quaders durch drei senkrecht aufeinanderliegende Schnittebenen.
+Die Oktanten werden bei Bedarf auf die gleiche Weise weiter unterteilt.
+Die entstehende Baumstruktur bildet den Octree.
+Die Raumgebiete stellen die Knoten des Baums dar, die Kanten verlaufen vom jeweiligen Raumgebiet zu den zugehörigen Oktanten.
+
+%- Voxel: Möglichkeiten zur Umwandlung
+%	-	Würfel (max. 12 Dreiecke)
+%	- Tetraeder (max. 8 Dreiecke)
+%	- ein Vertex pro Voxel:
+%		- Vorteil: weniger Vertexe (nur auf den ersten Blick: Würfelmethode ebenso sparsam!)
+%		- aber: Vermeidung zweidimensionaler Geometrie beachten
+%	[BILD: Vergleich der Methoden in 2D]
+%	-> Vergleichstabelle: Anzahl der möglichen Vertexe, Genauigkeit, Winkelvielfalt
+%		 Würfel: Anzahl der Voxel, perfekt, wenig (nur 90°)
+%		 Tetraeder: 3 * Anzahl der Voxel  , schlecht, viel (45°,90°)
+%		 Vertex: Anzahl der Voxel, schlecht, viel (45°,90°)
+%-> Nutzung der Würfelabtastung (Grund: Exaktheit)
+
+%- nun Umrechnung der gesetzten Voxel in Dreiecksnetz
+%- nur Randvoxel (1-Voxel mit 0-Voxel-Nachbarn) brauchen betrachtet werden
+\ \\
+Der Octree wird zur Aufteilung des Netzes verwendet, so dass in jedem Teilnetz maximal $V_{max}$ viele Vertices vorhanden sind.
+In der Implementierung wird $V_{max} = 65000$ gewählt, welches unter dem Maximum der Irrlicht-Engine je Meshbuffer liegt.
+Die Tiefe des erzeugten Octrees liegt in $\mathcal O(\log n)$ mit $n$ als Anzahl aller Voxel.
+
+Die klassische Methode zum Aufbau des Octrees ist die \emph{Top-Down}-Variante.
+Begonnen wird mit dem gesamten Voxelraum als Startknoten.
+Für jeden Knoten erfolgt das Zählen der benötigten Vertices $V$ mittels Algorithmus \ref{VoxelVerticesZaehlen}.
+Wenn $V > V_{max}$ ist, dann wird der entsprechende Knoten in acht gleichgroße Kindknoten aufgeteilt,
+mit denen äquivalent verfahren wird.
+Die Laufzeitkomplexität der Methode ist $\mathcal O(n \log n)$, da in jeder Ebene des Octrees schlimmstenfalls alle Voxel geprüft werden müssen.
+
+Die schnellere Variante ist die \emph{Bottom-Up} Methode.
+Hier wird zuerst der Octree soweit aufgebaut, bis jeder Knoten maximal so groß ist, dass seine \emph{theoretische} maximale Vertexanzahl höchsten $V_{max}$ beträgt.
+Für $V_{max} = 65000$ wäre dies bei einer Ausgangsgröße des Voxelraums von $512^3$ eine Knotengröße von $32^3$, welches maximal $33^3=35937$ Vertices entsprechen würde.
+Eine Zählung mittels Algorithmus \ref{VoxelVerticesZaehlen} findet nur für die unterste Ebene des Octrees, also die Blätter, statt.
+Nun werden von den Kindknoten aus bis zur Wurzel hin die Werte $V$ der Knoten zusammenaddiert.
+Dabei berechnet sich $V$ eines Elternknotens aus der Summe der $V$ der Kindknoten:
+
+\begin{equation}
+ \label{OctreeBottomUpSumme}
+ 			V_{Eltern} = \sum\limits_{i=0}^{7} \left(V_{Kind\ i}\right) 
+\end{equation}
+
+\ \\
+Durch dieses Verfahren kann $V$ eines Nichtblattknotens höher liegen als die tatsächlich Anzahl an Vertices, die für diesen Knoten benötigt werden würden.
+Keinesfalls liegt sie aber darunter. Die Werte $V$ stellen somit obere Schranken dar.
+Dieses Verfahren hat eine Laufzeitkomplexität von $\mathcal O(n)$ und liegt damit im Punkt Geschwindigkeit vor der Top-Down-Variante.\footnote{Ausnahme:
+Octree hat nur eine Hierarchieebene. Hier liegt die Top-Down-Variante minimal vor der Bottom-Up-Variante.}
+In der Implementierung des Programms wird die Bottom-Up-Methode verwendet.
+
+\begin{algorithm}
+\caption{Umwandlung Voxelgebiet in Dreiecksnetz: Zählen der Vertices}
+\label{VoxelVerticesZaehlen}
+\algorithmicrequire{Voxelraum, Grenzen des Voxelgebietes: $X_{min}$, $X_{max}$, $Y_{min}$, $Y_{max}$, $Z_{min}$, $Z_{max}$. $S[a]$ und $S[b]$ sind mit $0$ initialisiert.}\\
+\algorithmicensure{Anzahl benötiger Vertices: $V$}
+\begin{algorithmic}[1]
+	\State $V \gets 0$
+
+	\For{$x = X_{min} \to X_{max}$}	\Comment{Sweepen entlang der X-Achse}
+		\ForAll{$(y,z) \in [Y_{min},Y_{max}]\times [Z_{min},Z_{max}]$}
+			  \If{$Voxel(x,y,z) = 1$}
+			  	\If{$Voxel(x-1,y,z) = 0$}
+			  		\State $S[a](y,z) \gets 1\ ,\ S[a](y+1,z) \gets 1$
+			  		\State $S[a](y,z+1) \gets 1\ ,\ S[a](y+1,z+1) \gets 1$
+			  	\EndIf			  	
+			  	\If{$Voxel(x+1,y,z) = 0$}
+			  	  \State $S[b](y,z) \gets 1\ ,\ S[b](y+1,z) \gets 1$
+			  		\State $S[b](y,z+1) \gets 1\ ,\ S[b](y+1,z+1) \gets 1$
+			  	\EndIf			  	 
+			  	\If{$Voxel(x,y-1,z) = 0$}
+			  	  \State $S[a](y,z) \gets 1\ ,\ S[a](y,z+1) \gets 1$
+			  	  \State $S[b](y,z) \gets 1\ ,\ S[b](y,z+1) \gets 1$
+			  	\EndIf			  	
+			  	\If{$Voxel(x,y+1,z) = 0$}
+			  	 	\State $S[a](y+1,z) \gets 1\ ,\ S[a](y+1,z+1) \gets 1$
+			  	  \State $S[b](y+1,z) \gets 1\ ,\ S[b](y+1,z+1) \gets 1$
+			  	\EndIf			  				  	
+			  	\If{$Voxel(x,y,z-1) = 0$}
+			  	  \State $S[a](y,z) \gets 1\ ,\ S[a](y+1,z) \gets 1$
+			  	  \State $S[b](y,z) \gets 1\ ,\ S[b](y+1,z) \gets 1$
+			  	\EndIf			  				  	
+			  	\If{$Voxel(x,y,z+1) = 0$}
+			  	  \State $S[a](y,z+1) \gets 1\ ,\ S[a](y+1,z+1) \gets 1$
+			  	  \State $S[b](y,z+1) \gets 1\ ,\ S[b](y+1,z+1) \gets 1$
+			  	\EndIf			  
+			 	\EndIf
+		\EndFor
+		
+		\ForAll{$(y,z) \in [Y_{min},Y_{max}+1]\times [Z_{min},Z_{max}+1]$}
+			\State $V \gets V+S[a](y,z)$ \Comment{Vertices zählen}
+			\State $S[a](y,z) \gets 0 $	\Comment{Sweepebene a löschen}
+		\EndFor		
+		\State $a\leftrightarrow b$	\Comment{Sweepebenen vertauschen}		
+	\EndFor \Comment{Sweep abgeschlossen}
+	
+	\ForAll{$(y,z) \in [Y_{min},Y_{max}+1]\times [Z_{min},Z_{max}+1]$}
+		\State $V \gets V+S[a](y,z)$			\Comment{verbleibende Vertices zählen}
+	\EndFor		
+\end{algorithmic}
+\end{algorithm}
+
+\ \\
+Algorithmus \ref{VoxelVerticesZaehlen} nutzt für das Zählen der benötigten Vertices ein Sweepverfahren, um Speicherplatz zu sparen.
+Statt $\mathcal O\left(\left(X_{max}-X_{min}\right)\cdot \left(Y_{max}-Y_{min}\right) \cdot \left(Z_{max}-Z_{min}\right)\right)$ zusätzlichen Speicherplatz zu benötigen,
+wird nur $\mathcal O\left(\left(Y_{max}-Y_{min}\right) \cdot \left(Z_{max}-Z_{min}\right)\right)$ benötigt.
+Der Algorithmus durchläuft das entsprechende Voxelgebiet und testet auf $0\Leftrightarrow 1$ Übergänge zwischen benachbarten Voxeln.
+Jeder dieser Übergänge benötigt vier Vertices an entsprechender Position, um durch zwei Dreiecke dargestellt werden zu können.
+Diese Vertices werden in den beiden Sweepebenen markiert. Bei jedem neuen Sweepschritt entlang der X-Achse wird die Anzahl der benötigten Vertices aus der älteren
+der beiden Sweepebenen ausgelesen und zur Gesamtanzahl dazuaddiert.
+Das Sweepverfahren ist in Abbildung \ref{B_VoxelZuVertex}(b) skizziert.
+
+\ \\
+Nach dem Aufbau des Octrees findet der Umwandlungsschritt statt. Der Octree wird nun Top-Down durchlaufen.
+Für jeden Knoten wird getestet, ob $V \leq V_{max}$, wobei die vorher ausgerechneten Werte für $V$ verwendet werden.
+Falls der Test positiv verläuft, wird das zum Knoten gehörige Gebiet umgewandelt.
+Bei negativem Test wird stattdessen mit den Kindknoten weiter verfahren.
+
+Zur Umwandlung eines Voxelgebietes in ein Dreiecksnetz wird Algorithmus \ref{VoxelVerticesZaehlen} entsprechend angepasst.
+Statt den Einträgen der Sweepebenen eine $1$ zuzuweisen, wird zuerst überprüft, ob ein Eintrag vorliegt.
+Wenn nicht, wird ein neuer Vertex mit den entsprechenden Koordinaten (Sweepebene $a$: $x_{res} = x$, Sweepebene $b$: $x_{res} = x+1$, $y$ und $z$ werden übernommen)
+erstellt und ein Verweis auf diesen Vertex in der zugehörigen Sweepebene gespeichert.
+Die Berechnung der finalen Koordinaten des Vertex findet wie in Kapitel \ref{K_VertexkoordinatenBerechnen} beschrieben statt.
+
+Nach dem Testen der vier Sweepebeneneinträge werden zwei Dreiecke erstellt, die die jeweilige Voxelgrenzfläche darstellen.
+Für die Eckpunkte der zwei Dreiecke werden die vier Vertices entsprechend der Einträge in den beiden Sweepebenen verwendet.
+Danach wird der nächste der sechs Fälle abgearbeitet.
+
+Das Zählen der Vertices entfällt in diesem Algorithmus.
+Der Umwandlungsprozess hat eine Laufzeitkomplexität von $\mathcal O(n)$ mit $n$ als Anzahl aller Voxel.
+
+%================================================================================================
+%================================================================================================
+
+\section{Berechnung der Vertexkoordinaten}
+\label{K_VertexkoordinatenBerechnen}
+
+Die Berechnung der Vertexkoordinaten wird über eine Funktion realisiert, die aus Eingangskoordinaten Ausgangskoordinaten berechnet.
+Dabei sind die Eingangskoordinaten ganzzahlig, da es sich um Voxeleckpunkte handelt, und die Ausgangskoordinaten Gleitkommazahlen.
+Das Prinzip Eingangskoordinaten in Ausgangskoordinaten umzuwandeln
+entspricht dem von Raumverzerrungsmethoden.
+Andere oder auch zusätzliche Raumverzerrungsverfahren zur hier verwendeten Funktion sind denkbar.
+
+Wichtig dabei ist, dass die Funktion deterministisch arbeitet, d.h. bei gleichen Eingangskoordinaten die gleichen Ausgangskoordinaten ausgibt.
+Dies ist relevant, damit die verschiedenen Subnetze der Höhle an den Rändern zusammenpassen,
+d.h. die korrespondierenden Randvertices müssen identische Koordinaten besitzen.
+Weiterhin können so Gänge exakt an die Höhle angedockt werden (siehe Kapitel \ref{KK_AndockenHoehle}).
+
+%, z.B. periodisches Wölben der XZ-Ebene des Raums mittels Sinus und Cosinusfunktionen
+%- eine andere Verwacklungsfunktion könnte auf einem Perlin-Noise-Rauschen (!!!Quelle) basieren  
+\ \\
+Bei der Basisfunktion entsprechen die Ausgangskoordinaten genau den Eingangskoordinaten,
+wodurch die Würfelstruktur des Voxelraums erhalten bleibt.
+Eine weitere Anpassung der Koordinaten für zusätzlichen Realismus ist sinnvoll.
+Statt die Voxelstruktur nur durch die Würfelform wiederzugeben,
+ist es besser, diese Struktur zu verzerren, so dass sie natürlicher wirkt.
+Als grundlegende Strategie werden die Vertices \emph{verwackelt},
+um dem Dreiecksnetz der Höhle eine zerklüftetere Struktur zu geben.
+
+Beim Verwackeln wird der Eingangsvertex entlang aller drei Achsen per deterministischer Zufallsfunktion verschoben.
+Die Zufallsfunktion wird mit einem einzigartigen Seed für jede mögliche Eingangsposition initialisiert.
+Jede Eingangsposition erhält so einzigartige Zufallswerte, die Funktion ist deterministisch.
+
+Dann werden die Abweichungen von der Ausgabeposition zur Eingangsposition wie in Formel \ref{VerwacklungDeltaX} berechnet.
+Die Formeln für $\Delta_{y}$ und $\Delta_{z}$ sind äquivalent.
+Hierbei stellt $K$ die Verwacklungsstärke dar, die zur Erhaltung der Symmetrie für alle drei Achsen gleich ist.
+Die Funktion $Zufallswert[0,1]$ liefert eine zufällige Gleitkommazahl im Intervall $[0,1]$.
+Resultat für $\Delta_{x}$, $\Delta_{y}$ und $\Delta_{z}$ sind Werte zwischen $-K$ und $K$.
+\begin{equation}
+ \label{VerwacklungDeltaX}
+ 			\Delta_{x} = -K + 2 \cdot K \cdot Zufallswert[0,1]
+\end{equation}
+
+\ \\
+Es muss $K < 0,5$ gelten, damit keine Vertices aufeinanderliegen können, siehe hierzu Abbildung \ref{B_Clamping}(a).
+Dies ist aber nicht ausreichend, da trotzdem Konflikte auftreten können, wie in (b) zu sehen ist.
+Hier würden sich beide Dreiecke der Fläche (grau) ineinander schieben.
+Dem Problem kann vorgebeugt werden, indem der Vertex nur so verschoben wird, dass der Manhattenabstand zur Ausgangsposition
+in jeder Ausgangsebene der Dreiecksflächen (XY, XZ, YZ) weniger als $0,5$ beträgt, wie in (c) zu sehen ist.
+Es muss also gelten:
+
+\begin{equation}
+ \label{VerwacklungManhattenXY}
+ 			\left|\Delta_{x}\right|+\left|\Delta_{y}\right| < 0,5
+ 			\ \wedge \ \left|\Delta_{x}\right|+\left|\Delta_{z}\right| < 0,5
+ 			\ \wedge \ \left|\Delta_{y}\right|+\left|\Delta_{z}\right| < 0,5
+\end{equation}
+
+\ \\
+Der erste Lösungsansatz besteht in Begrenzung der Verwacklungsstärke auf $< 0,25$.
+Nachteil ist, dass Potential verschenkt wird, da Koordinaten so nur recht wenig abgeändert werden.
+Der neue Ansatz erlaubt weiterhin Verwacklungsstärken $< 0,5$.
+Hier wird nach der Berechnung von $\Delta_{x}$, $\Delta_{y}$ und $\Delta_{z}$ getestet, ob ein Problemfall vorliegt,
+also der zulässige Manhattenabstand überschritten wurde.
+Wenn ja, dann wird dieser Konflikt aufgelöst.
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=15cm]{Bilder/Clamping}
+	\caption[Verwacklung der Vertexkoordinaten]{\emph{Verwacklung der Vertexkoordinaten}:
+	v.l.n.r. \\
+	(a) Änderung einzelner Koordinaten $< 0,5$ (Grenzen: Quadrate,\\ rot gestrichelt), euklidischer Abstand $< 0,5$ (Kreise, rot) \\
+	(b) beides kann zu Konflikten führen \\
+	(c) keine Konflikte bei Manhattenabstand $< 0,5$ (Quadrate, rot)}
+	\label{B_Clamping}
+\end{figure}
+
+\ \\
+Dies geschieht mittels \emph{Clamping}.\footnote{In
+der Computergrafik bezeichnet der Begriff "`Clamping"' das Begrenzen von Werten auf einen bestimmten Bereich (vgl. Color Clamping in OpenGL).}
+Wenn der maximal zulässige Manhattenabstand $M$ überschritten wird,
+dann beschneide die Koordinatenabweichung so, dass keine Überschreitung von $M$ mehr vorliegt.
+In der Implementierung wurde der Wert $M = 0,49$ gewählt. Für $K$ muss gelten $0\leq K\leq M$.
+
+Es können grundsätzlich drei verschiedene Problemfälle auftreten, die unterschiedliche Clampingstrategien sinnvoll machen.
+Wichtig für die entwickelten Clampingstrategien ist es, die Ausgangswerte möglichst wenig und möglichst gleichmäßig zu verändern.
+
+\ \\
+\emph{Fall 1}: Es liegt eine Verletzung der Bedingung in allen drei Ebenen vor.
+Lösungsstrategie: Normalisiere alle Abweichungswerte ($\Delta_{x},\Delta_{y},\Delta_{z}$).
+Nutze dazu folgendes Verfahren:
+\begin{equation}
+ \label{VerwacklungClamp3}
+ \begin{aligned}
+ 			n &= \text{max}\left( \left|\Delta_{x}\right|+\left|\Delta_{y}\right|,\left|\Delta_{x}\right|+\left|\Delta_{z}\right|,\left|\Delta_{y}\right|+\left|\Delta_{z}\right| \right)\\
+			{\Delta}^{neu}_{x} &= \Delta_{x} \cdot M / n \\
+ 			{\Delta}^{neu}_{y} &= \Delta_{y} \cdot M / n \\
+ 			{\Delta}^{neu}_{z} &= \Delta_{z} \cdot M / n \\ 	
+ \end{aligned}
+\end{equation}
+
+\ \\
+\emph{Fall 2}: Es liegt eine Verletzung der Bedingung in genau zwei Ebenen vor.
+Lösungsstrategie: Clampe die gemeinsame Koordinate.
+Nutze dazu folgendes Verfahren (Beispiel für XY und XZ $\rightarrow$ Clamping von $\Delta_{x}$):
+\begin{equation}
+ \label{VerwacklungClamp2}
+ \begin{aligned}
+ 			n &= \text{min}\left( M-\left|\Delta_{y}\right|,M-\left|\Delta_{z}\right| \right) \\
+			{\Delta}^{neu}_{x} &= \begin{cases} 
+									n & falls\ \Delta_{x}>0 \\ 
+									-n & sonst 
+									\end{cases} 
+ \end{aligned}
+\end{equation}
+
+\ \\
+\emph{Fall 3}: Es liegt eine Verletzung der Bedingung in exakt einer Ebene vor.
+Lösungsstrategie: Normalisiere beide zur Ebene gehörigen Abweichungswerte.
+Nutze dazu folgendes Verfahren (Beispiel für XY-Ebene):
+\begin{equation}
+ \label{VerwacklungClamp1}
+ \begin{aligned}
+ 			n &= \left|\Delta_{x}\right|+\left|\Delta_{y}\right| \\
+			{\Delta}^{neu}_{x} &= \Delta_{x} \cdot M / n \\
+ 			{\Delta}^{neu}_{y} &= \Delta_{y} \cdot M / n \\
+ \end{aligned}
+\end{equation}
+
+\ \\
+Nach dem Clamping werden die resultierenden Ausgangskoordinaten $\left(x_{aus},y_{aus},z_{aus}\right)$ aus den Eingangskoordinaten
+$\left(x_{ein},y_{ein},z_{ein}\right)$ berechnet:
+
+\begin{equation}
+ \label{VerwacklungKoordRes}
+ 		\left(x_{aus},y_{aus},z_{aus}\right) = \left(x_{ein}+\Delta_{x},y_{ein}+\Delta_{y},z_{ein}+\Delta_{z}\right)
+\end{equation}
+
+%================================================================================================
+\subsection{Glättung des Dreiecksnetzes}
+
+\begin{figure}[htbp]
+  \centering  
+  \subfloat{\includegraphics[width=14cm]{Bilder/Screenshot_Verwackeln_kein_Glaetten}}\\    
+  \subfloat{\includegraphics[width=14cm]{Bilder/Screenshot_Verwackeln_Glaetten}}  
+	\caption[Modifizierung der Vertexkoordinaten]{\emph{Modifizierung der Vertexkoordinaten}:
+	 $K=0,35$ , v.o.n.u. (a) Verwackeln ohne Glätten, (b) Verwackeln mit Glätten}
+	 \label{B_VerwackelnGlaettenShots}
+\end{figure} 
+
+Falls die Höhlenwände eine glattere, aber dennoch unregelmäßige Struktur besitzen sollen,
+wäre eine optionale Glättung des verwackelten Dreiecksnetzes von Vorteil.
+Die Überlegung besteht darin, die Verwacklungsrichtungen so zu gestalten, dass durch den Verwacklungsprozess diese Glättung erreicht wird.
+
+%Jeder Vertex an Ausgangsposition $(x,y,z)$ gehört potentiell zu acht Voxeln.
+%Diese haben die Voxelkoordinaten im Bereich $[x-1,x]\times[y-1,y]\times[z-1,z]$
+\ \\
+Dazu wird die Nachbarschaft des jeweiligen Vertex betrachtet.
+Zu einem gegebenen Vertex sei ein anderer Vertex benachbart, wenn er mit diesem über eine Voxelkante verbunden ist.
+In Abbildung \ref{B_Kantenwichtung} sind solche Nachbarschaften aufgezeigt.
+Ein Vertex kann über maximal sechs Nachbarvertices verfügen, in jeder Achsenrichtung einen.
+Folgende Beobachtung lässt sich treffen: für glattere Struktur muss ein Vertex i.d.R. in Richtung seiner Nachbarvertices bewegt werden.
+In entgegengesetzter Richtung würden Zacken entstehen.
+
+Die Idee ist es, diese Kanten zu Nachbarvertices zu zählen und gegeneinander aufzuwiegen,
+um die finale Verwacklungsrichtung zu bestimmen.
+Durch Betrachtung der möglichen Fälle (Auswahl in Abbildung \ref{B_Kantenwichtung})
+wird ersichtlich, dass die Kanten dabei unterschiedlich gewichtet werden müssen:
+Liegt die Kante zu einem Nachbarvertex inmitten einer Fläche, so zählt dies zweifach,
+liegt sie dagegen auf einer Ecke, zählt sie nur einfach.
+Wenn keine Kante existiert, so zählt dies nullfach.
+
+Dadurch ergeben sich sechs Werte als \emph{Kantengewichte}, für jede Achse jeweils in positive und negative Richtung:
+$W_{x+}$,$W_{x-}$,$W_{y+}$,$W_{y-}$,$W_{z+}$,$W_{z-}$
+
+\begin{figure}[hbtp]
+  \centering  
+	\includegraphics[width=15cm]{Bilder/Kantenwichtung}
+	\caption[Wichtung der Kanten]{\emph{Wichtung der Kanten}: Vertices grün, Kanten zu Nachbarvertices rot, Zahlen geben Kantengewichte an}
+	\label{B_Kantenwichtung}
+\end{figure}
+
+%\ \\
+\noindent Für jede Achse werden die Kantengewichte für positive und negative Richtung gegeneinander aufgewogen,
+um die erlaubten Verwacklungsrichtungen zu bestimmen.
+Die Richtung mit dem höherem Gewicht ist erlaubt, bei gleichem Gewicht sind beide Richtungen erlaubt.
+Damit berechnen sich die \emph{Verwacklungsrichtungsparameter} $R_{x}$, $R_{y}$ und $R_{z}$ wie in Formel \ref{GlaettenRichtungX} angeben (Beispiel für $x$, $y$ und $z$ äquivalent):
+
+\begin{equation}
+ \label{GlaettenRichtungX}
+ \begin{aligned}
+		R_{x} = \begin{cases} 
+						0 & falls\ W_{x+} = W_{x-} \\ 
+						1 & falls\ W_{x+} > W_{x-} \\ 
+						-1 &	sonst
+						\end{cases} 
+ \end{aligned}
+\end{equation}
+
+\ \\
+Die Verwacklungsrichtungsparameter geben an, in welche Richtung die Koordinaten verwackelt werden dürfen.
+Der Verwacklungsschritt aus Formel \ref{VerwacklungDeltaX} wird nun wie in Formel \ref{VerwacklungGlaettenX} angepasst (Beispiel für $x$, $y$ und $z$ äquivalent):
+
+\begin{equation}
+ \label{VerwacklungGlaettenX}
+ \begin{aligned}
+			\Delta_{x} = \begin{cases} 
+									-K + 2 \cdot K \cdot Zufallswert[0,1] & falls\ R_{x} = 0 \\ 
+									K \cdot Zufallswert[0,1] & falls\ R_{x} > 0 \\ 
+									-K \cdot Zufallswert[0,1] & sonst
+									\end{cases} 
+ \end{aligned}
+\end{equation}
+
+\ \\
+Zur Optimierung wird eine Look-Up-Tabelle zu Speicherung von $R_x$, $R_y$ und $R_z$ verwendet.
+Für die Berechnung des Tabellenindex wird die Belegung $Voxel_i$ ($0$ oder $1$) aller acht den Vertex umgebenden Voxel verwendet.
+Jeder Voxel repräsentiert dabei ein Bit des Index.
+\begin{equation}
+ \label{GlaettenIndex}
+ \begin{aligned}
+		Index = \sum\limits_{i=0}^{7} \left(2^i \cdot Voxel_i\right) 
+ \end{aligned}
+\end{equation}
+
+\ \\
+Der Aufbau der Tabelle erfolgt bei Initialisierung des Programms.
+Alle möglichen Indices von  $0$ bis $255$ werden durchlaufen und dabei aus jedem Index die zugehörige Belegung der Voxel bestimmt.
+Für diese Voxelkonfiguration werden die Verwacklungsrichtungsparameter berechnet und in der Tabelle gespeichert.
+
+Bei der Berechnung der Vertexkoordinaten werden die den Vertex umgebenden Voxel betrachtet und daraus der Index bestimmt.
+Der entsprechende Eintrag der Look-Up-Tabelle wird ausgelesen und die Werte werden angewendet.
+
+\ \\
+Ein Vergleich der Resultate zwischen der Umwandlung mit Verwackeln ohne Glätten
+und der mit Verwackeln mit Glätten ist in Abbildung \ref{B_VerwackelnGlaettenShots} zu sehen.
+
+%================================================================================================
+%================================================================================================
+\section{Berechnung der Normalen}
+\label{KK_VoxelNormalen}
+
+Für die Beleuchtung der Höhle ist es erforderlich, die Normale in jedem Vertex zu kennen.
+Dabei wird jede Vertexnormale aus den Normalen der Dreiecke, zu denen dieser Vertex zugehörig ist, bestimmt.
+
+Das Gesamtverfahren sieht wie folgt aus: Anfangs ist jede Vertexnormale mit dem Nullvektor initialisiert.
+Nun werden alle Dreiecke abgelaufen und jeweils die unnormalisierte Dreiecksnormale $\vv{N_d}$ nach Formel \ref{F_NormaleDreieck} berechnet.
+Die Eckpunkte des entsprechenden Dreiecks seien $\vv{P_{1}},\vv{P_{2}},\vv{P_{3}}$.
+
+\begin{equation}
+ \label{F_NormaleDreieck}
+ 		\vv{N_d} = \left(\vv{P_{2}}-\vv{P_{1}}\right)\times \left(\vv{P_{3}}-\vv{P_{1}}\right)
+\end{equation}
+
+\ \\
+Es gibt nun unterschiedliche Arten, diese Dreiecksnormalen für die Berechnung der Vertexnormalen einzubeziehen.
+Drei dieser Methoden werden in Tabelle \ref{TabelleNormalenWichtung} verglichen.
+Je nach Verfahren wird die Dreiecksnormale normalisiert.
+Daraufhin folgt die Wichtung der Normale für jeden der drei Eckpunkte und die Aufaddierung dieser gewichteten Normale zu der Normalen jedes Eckpunktes.
+Nach dem Verfahren besitzt jeder Vertex seine \emph{Rohnormale}, die aus der Summe der gewichteten Dreiecksnormalen besteht.
+
+Diese Rohnormalen werden am Ende des gesamten Berechnungsprozesses normalisiert.
+
+\begin{table}
+\centering
+\begin{tabular}[c]{|l|c|c|c|c|}
+  \hline
+  Verfahren & Normalisieren & Wichtung für $\vv{P_1}$ & W. für $\vv{P_2}$ & W. für $\vv{P_3}$\\
+  \hline\hline  
+  Uniform& ja & 1 & 1 & 1\\  
+  per Winkel & ja & $\varangle \left( \vv{P_{2}}-\vv{P_{1}} , \vv{P_{3}}-\vv{P_{1}} \right)$ &
+  $\varangle$ in $\vv{P_2}$ &
+  $\varangle$ in $\vv{P_3}$ \\ 
+  per Flächeninhalt & nein & 1 & 1 & 1\\  
+  \hline
+\end{tabular}
+\caption{Verschiedene Wichtungsmethoden von Normalen bei der Berechnung von Vertexnormalen aus Dreiecksnormalen}
+ \label{TabelleNormalenWichtung}
+\end{table}
+
+\ \\
+Die \emph{uniforme Wichtung} stellt die grundlegendste Methode dar.
+Die Normale eines Vertex berechnet sich aus dem Durchschnitt der Normalen der zugehörigen Dreiecke.
+Die normalisierte Normale jedes Dreiecks wird dabei mit Faktor $1$ gewichtet.
+
+Die \emph{Wichtung per Winkel} wird beispielsweise von Irrlicht \cite{W_IrrlichtDokuMeshMani} verwendet.
+Die Normale eines Vertex berechnet sich aus den normalisierten Normalen der zugehörigen Dreiecke,
+die mit dem Winkel des jeweiligen Dreicks in diesem Vertex gewichtet werden.
+Die Winkel können per Kosinussatz berechnet werden.
+
+Die \emph{Wichtung per Flächeninhalt} wichtet die Normale jedes Dreiecks mit dem Flächeninhalt des Dreiecks.
+Die Länge der unnormalisierten Normale entspricht dem Flächeninhalt des Parallelogramms,
+welches von $\left(\vv{P_{2}}-\vv{P_{1}}\right)$ und $\left(\vv{P_{3}}-\vv{P_{1}}\right)$ aufgespannt wird.
+Dieser Flächeninhalt entspricht dem doppelten des Dreicksflächeninhaltes. 
+Die Normale braucht somit nicht normalisiert zu werden, da sie bereits korrekt gewichtet ist.
+Der Faktor $2$ kann beibehalten werden, da er einen konstanten Faktor für jede Normale darstellt.
+
+\ \\
+Durch den Wegfall der Normalisierung ist die Wichtung per Flächeninhalt die schnellste aller drei Varianten.
+Die Vorteile gegenüber den beiden anderen Methoden liegen dabei nicht nur in der schnelleren Berechnung:
+Degenerierte Dreiecke, wie Linien oder Punkte, ohne bestimmbare Normalen werden hierbei von vornherein nicht in die Vertexnormalen einbezogen,
+da der Flächeninhalt für diese Dreiecke null ist.
+Für die beiden anderen Varianten sei hier die Festlegung getroffen, dass der normalisierte Nullvektor wieder gleich dem Nullvektor sei.\footnote{Diese
+Variante ist auch in Irrlicht implementiert.}
+Da die unnormalisierte Dreiecksnormale jedes degenerierten Dreiecks dem Nullvektor entspricht,
+werden diese so auch nicht in die Vertexnormalen einbezogen.
+
+Die Methode Wichtung per Winkel erscheint intuitiv, da Ecken mit größerem Winkel einen größeren Einfluss auf ein Dreieck haben.
+Bei der Wichtung per Flächeninhalt ist der Beitrag zur Normalen umso größer, je größer das Dreieck ist, was ebenfalls intuitiv erscheint.
+
+Im Vergleich der Ergebnisse (siehe Abbildung \ref{B_Shot_Normalen})
+liefert die Wichtung per Flächeninhalt die gleichmäßigsten Normalen und die Wichtung per Winkel die weichsten Übergänge an Kanten.
+Insgesamt ähneln sich die Ergebnisse dennoch.
+Dies ist nicht verwunderlich: Die Voxelmeshes haben eine vergleichsweise regelmäßige Struktur.
+Für einen Mesh mit ausschließlich gleichgroßen gleichseitigen Dreiecken würden alle drei Methoden das gleiche Resultat liefern.
+Andere Methoden sind denkbar. \cite{W_VertexNormal} beschreibt unter anderem die "`Wichtung per inversen Flächeninhalt"'
+(Idee: kleine Dreiecke "`wissen"' mehr über die lokale Oberfläche, als große Dreiecke mit weit auseinanderliegenden Eckpunkten)
+und eine "`Methode der kleinsten Quadrate"'
+(nimm eine Ebene, um alle Vertices in der Nachbarschaft zu approximieren, und nutze deren Normale).
+
+\begin{figure}[htbp]
+  \centering  % trim: links unten rechts oben
+  %trim = 0mm 60mm 0mm 45mm
+  \subfloat{\includegraphics[width=14cm,trim = 0mm 110mm 30mm 10mm,clip]{Bilder/Screenshot_Normalen_uniform}} \\
+  \subfloat{\includegraphics[width=14cm,trim = 0mm 110mm 30mm 10mm,clip]{Bilder/Screenshot_Normalen_per_Winkel}} \\
+  \subfloat{\includegraphics[width=14cm,trim = 0mm 110mm 30mm 10mm,clip]{Bilder/Screenshot_Normalen_per_Flaecheninhalt}} 
+	\caption[Vergleich von Normalenberechnungsmethoden]{\emph{Vergleich von Normalenberechnungsmethoden}: v.o.n.u.
+	 (a) uniforme Wichtung, (b) Wichtung per Winkel, (c) Wichtung per Flächeninhalt}
+	\label{B_Shot_Normalen}
+\end{figure}
+
+\subsection{Normalen an Meshgrenzen}
+
+Die einzelnen Dreiecksnetze der Höhle teilen sich u.U. Vertices an ihren Grenzen.
+Diese Grenzvertices sind dann in mehreren Dreiecksnetzen vorhanden, besitzen aber identische Koordinaten.
+Es ist erforderlich, dass diese Vertices ebenfalls identische Normalen besitzen, da sie ein und den selben Vertex repräsentieren.
+Die entsprechenden Normalen müssen also zu einer einzigen Normale zusammengefasst werden.
+
+\ \\
+Die Methode, um die Vertices zusammenzufassen, funktioniert wie folgt:
+Beim Umwandeln der Voxel in ein Dreiecksnetz werden bereits alle Grenzvertices markiert.
+Dazu wird getestet, ob sich der Vertex am Rand des umgewandelten Gebietes befindet und ob das benachbarte Netz
+an dieser Position ebenfalls einen Vertex generieren würde (dies kann durch Betrachtung der acht den Vertex umgebenden Voxel bestimmt werden).
+Wenn ja, wird die X-Texturkoordinate $\vv{T}.x$ auf $1,0$ gesetzt, ansonsten auf $-1,0$.\footnote{Da
+die Höhlenmeshes keine 2D-Texturen verwenden, können deren Texturkoordinaten für andere Zwecke genutzt werden.}
+
+Nach dem Umwandeln und der Berechnung der \emph{Rohnormalen} für jeden Vertex (s.o.) werden
+alle Rohnormalen der Vertices mit $\vv{T}.x = 1,0$ in eine Tabelle geschrieben.
+Die Koordinaten $(x,z)$ des jeweiligen Vertex definieren die Adresse in der Tabelle.
+Nach dem Eintragen werden alle Tabelleneinträge nach ihrer Y-Koordinate sortiert.
+
+Nun wird jeder $(x,z)$-Eintrag der Tabelle durchlaufen und die Normalen von aufeinander folgenden Vertices gleicher Y-Koordinate zusammengefasst.
+Diese repräsentieren den gleichen Vertex, da sie identische $(x,y,z)$-Koordinaten haben.
+Beim Zusammenfassen werden alle Normalen zusammenaddiert und diese Summe dann den zugehörigen Vertices als neue Normale zugewiesen.
+Die Normalisierung aller Normalen findet zum Schluss des Prozesses statt.
+
+\ \\
+Dadurch ergibt sicht folgendes Gesamtverfahren:
+\begin{compactenum}
+ \item Berechne alle Rohnormalem
+ \item Fasse die Rohnormalen aller Grenzvertices zusammen
+ \item Normalisiere alle Normalen
+\end{compactenum}
+
+\ \\
+Die Laufzeitkomplexität der Normalenberechnung beträgt somit $\mathcal O(n \log y)$,
+mit $n$ als Anzahl der Vertices und $y$ als Anzahl der maximalen Anzahl der Tabelleneinträge.
+Das Sortierverfahren kostet hierbei die meiste Zeit, ohne Sortieren wäre die Laufzeitkomplexität linear in $n$.
+Als Verbesserungsmöglichkeit ließe sich statt einer $(x,z)$-Tabelle auch eine Hashtabelle verwendet.
+Nähere Ausführungen zur Wahl von Hashfunktionen sind in \cite[S.398 ff.]{B_AlgDaten} und \cite[S.264 ff.]{B_AlgoEinf} gelistet.
+Die Herausforderung liegt hier darin, die Anzahl der Einträge der Tabelle nicht zu hoch zu wählen (Speicherplatz),
+aber auch keine zu hohe Anzahl an Vertices pro Tabelleneintrag zu generieren (Laufzeit).
+
+%\ \\
+%Der Schritt des Normalenzusammenfassens findet nach der Aufsummierung der gewichteten Dreiecksnormalen,
+%aber vor Normalisierung aller Vertexnormalen statt.
+%Dadurch ist gewährleistet, dass die gewählte Wichtungsmethode auch für die Grenzvertices angewendet wird.
+%Dadurch, dass der Normalenzusammenfassungsprozess die Normalen der prinzipiell identischen Vertices zusammenaddiert,
+%werden deren bereits aufsummierten gewichteten Normalen nocheinmal meshübergreifend aufsummiert.
+%!!!verständlicher erklären, als 3 Schritt Prozess?
+
+
+
+%================================================================================================
+%================================================================================================
+\section{Texturierung und Beleuchtung der Höhle}
+
+Die Höhle mittels einer 2D-Textur zu texturieren, gestaltet sich problematisch.
+Zum einen sind passende Texturkoordinaten schwierig zu berechnen,
+zum anderen würden viele Wiederholungen der verwendeten Textur auftreten
+oder aber sehr große Texturen nötig sein, also sehr speicheraufwändige Megatexturen.
+
+Viel sinnvoller ist die Verwendung prozeduraler 3D-Texturen.
+Eine 3D-Textur besitzt drei Texturkoordinaten statt wie im 2D-Fall nur zwei.
+Als Texturkoordinaten können im Fall der Höhle direkt die Positionswerte $(x,y,z)$ der einzelnen Punkte verwendet werden.
+Eine Texturfunktion weist einem solchen Texturkoordinaten-Tripel $(x,y,z)$ einen konkreten Farbwert zu.
+Dieser Farbwert wird entsprechend der Beleuchtung modifiziert und dann dargestellt.
+Je nach Wahl der Funktion werden verschiedene Strukturen wie z.B. Marmor oder Holz erzeugt,
+Beispiele hierfür werden in \cite[S.213 ff.]{B_GraDV2} beschrieben.
+
+\ \\
+Kristalline Strukturen lassen sich in Verbindung mit der zerklüfteten unregelmäßigen Geometrie der Höhle durch passende Beleuchtung vergleichsweise einfach darstellen.
+Ausgegangen wird von der Grundformel \ref{F_3DTextureLambert} für diffuse Beleuchtung nach dem Lambertschen Gesetz \cite[S.723-724]{B_Foley},
+mit $\vv{L}$ als Vektor in Richtung des einfallenden Lichtstrahls und $\vv{N}$ als Normale der Oberfläche. 
+$\vv{L}$ und $\vv{N}$ seien normiert.
+$C_{res}$ ist die resultierende Farbe, $C_{basis}$ die gewünschte Basisfarbe mit $0\cdot C_{basis}$ als schwarzer Farbe (unbeleuchtet).
+
+\begin{equation}
+ \label{F_3DTextureLambert}
+ 		C_{res} = \begin{cases} 
+						\left(\vv{L} \cdot \vv{N}\right) \cdot C_{basis} & falls\ \left(\vv{L} \cdot \vv{N}\right) \geq 0 \\ 
+						0\cdot C_{basis} & sonst
+						\end{cases}
+\end{equation}
+
+\ \\
+Der effektiv zulässige Winkel zwischen $\vv{L}$ und $\vv{N}$ für Formel \ref{F_3DTextureLambert} beträgt $0$ bis $90$ Grad.
+Durch die zerklüftete Struktur der Höhle ist dieser Winkel unter Verwendung von Vertexnormalen auch bei sichtbaren Oberflächenteilen oftmals größer.
+Mit Beleuchtung nach Formel \ref{F_3DTextureLambert} würde hier sehr früh zu schwarz überblendet werden.
+Eine feinere Abstufung der Beleuchtung würde entfallen.
+Statt zwischen $\vv{L}$ und $\vv{N}$ nur einen Winkel $0$ bis $90$ Grad zuzulassen, seien nun beliebige Winkel (also $0$ bis $180$ Grad) zulässig.
+
+Als Lichtquelle wird eine Punktlichtquelle verwendet, die die Position der Kamera innehat.
+Somit zeigt $\vv{L}$ vom entsprechendem Punkt der Oberfläche in Richtung Kamera.
+Die Normale wird invertiert, wodurch ein Verschlucken des Lichtes bei frontaler Betrachtung der jeweiligen Struktur erreicht wird.
+An den äußeren Rändern tritt jedoch das Licht hervor, welches schimmernde kristalline Strukturen, wie z.B. Eis, darstellt.
+Diese Modifikationen führen zu Formel \ref{F_3DTextureKristall}.
+Ein Vergleich der Methoden ist in Abbildung \ref{B_BeleuchtungVergleich} zu sehen.
+
+\begin{equation}
+ \label{F_3DTextureKristall}
+ 		C_{res} = \left(1 -\left(\vv{L} \cdot \vv{N}\right)\right) \cdot \frac{C_{basis}}{2}
+\end{equation}
+
+\ \\
+Für das Darstellen der Höhle im Dungeongenerator-Programm wird als Texturfunktion eine einheitliche Basisfarbe für alle $(x,y,z)$ verwendet.
+Die Beleuchtung wird mittels der Methode aus Formel \ref{F_3DTextureKristall} durchgeführt.
+Diese Kombination erlaubt ein performantes Rendering der Höhlenstrukturen, da nur wenige Berechnungen notwendig sind,
+und ist einfach mittels Shadern implementierbar.
+
+\begin{figure}[htbp]
+  \centering  % trim: links unten rechts oben
+  \hfill
+  \subfloat{\includegraphics[width=49mm,trim = 200mm 60mm 0mm 45mm,clip]{Bilder/Screenshot_Beleuchtung_Lambert}}
+  \hfill
+  \subfloat{\includegraphics[width=49mm,trim = 200mm 60mm 0mm 45mm,clip]{Bilder/Screenshot_Beleuchtung_Kristall_braun}}
+  \hfill
+  \subfloat{\includegraphics[width=49mm,trim = 200mm 60mm 0mm 45mm,clip]{Bilder/Screenshot_Beleuchtung_Kristall_blau}} 
+  \hfill
+	\caption[Vergleich von Beleuchtungsmethoden]{\emph{Vergleich von Beleuchtungsmethoden}: v.l.n.r.
+	 (a) lambertsche Beleuchtung, (b) Kristall braun (Bernstein), (c) Kristall blau (Eis)}
+	 \label{B_BeleuchtungVergleich}
+\end{figure}
+

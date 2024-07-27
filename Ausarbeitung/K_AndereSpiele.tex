@@ -1,0 +1,378 @@
+\chapter{Vorbetrachtung}
+
+In diesem Kapitel erfolgt zuerst die Erklärung der Begriffe Höhle und Dungeon
+sowie das Aufführen einiger Beispiele hierfür.
+Danach wird der Begriff prozedurale Generierung näher betrachtet
+und es werden Beispiele dafür aus dem Bereich der Spielweltgenerierung aufgezeigt.
+% (mit Schwerpunkt auf Dungeons, Landschaften und Computerspielen)
+
+%=========================================================================
+\section{Höhlen und Dungeons}
+
+\emph{Höhlen} seien im Folgenden analog zu den Ausführungen von \cite[S.6 ff.]{B_Hoehlen} beschrieben.
+Hier wird erläutert, dass die Auffassungen darüber,
+was unter dem Begriff Höhle zu verstehen ist, relativ subjektiv sind und weit auseinander gehen.
+\cite{B_Hoehlen} beschreibt Höhlen, als "`vom Menschen begehbare und durch Naturprozesse gebildete Hohlräume,
+die ganz oder teilweise von festen Gestein umgeben sind"'.
+
+Es wird zwischen primären und sekundären Höhlen unterschieden.
+Primäre Höhlen entstehen schon beim Prozess der Gesteinsbildung.
+Ein Beispiel sind Lavahöhlen, die entstehen, wenn erkaltende Lava oberflächlich erstarrt
+und sich tiefere Teile des Lavastroms weiterbewegen.
+Sekundäre Höhlen entstehen erst nach dem Prozess der Gesteinsbildung.
+Ein Beispiel hierfür sind Wasserhöhlen, deren Entstehung auf das
+erosive Wirken von Wasser zurückzuführen ist.
+
+In \cite{W_HoehleDef} wird eine Höhle als
+"`natürlicher unterirdischer Hohlraum, der groß genug ist von Menschen betreten zu werden"'
+beschrieben.
+Hier werden Gletscherhöhlen explizit als Höhlen aufgeführt.
+Beispiele für Höhlen sind in Abbildung \ref{B_Hoehlenbsp} dargestellt.
+
+\begin{figure}
+  \centering % trim: links unten rechts oben
+ 
+  \hfill
+  \subfloat{\includegraphics[width=7.45cm]{Bilder/Hoehle_Gletscher2}} %[Eis-Höhle][Gletscherhöhle \cite{W_HoehleGletscher}]
+  \hfill
+  \subfloat{\includegraphics[width=7.45cm]{Bilder/Hoehle_Lava2}} 			%[Lava-Höhle]  [Lavahöhle \cite{W_HoehleLava}]
+  \hfill \\
+
+  \hfill
+  \subfloat{\includegraphics[height=5.0cm]{Bilder/Hoehle_Mammut}}%[Die Mammuthöhle im  Dachstein \cite{W_HoehleMammut}]
+  \hfill
+  \subfloat{\includegraphics[height=5.0cm]{Bilder/Hoehle_Wueste}}    %[Kreidehöhle in Wüste][Kreidehöhle in der Weissen Wüste \cite{W_HoehleWueste}]
+  \hfill  \\
+     
+  \hfill
+  \subfloat{\includegraphics[width=15cm]{Bilder/Hoehle_Map_CrystalCave_geschnitten_neu_sharpen}} %[Grundriss der Crystal Cave in Wisconsin \cite{W_HoehleCrystalCaveGrundriss}]
+  \hfill
+  
+	\caption[Diverse in der Natur vorkommende Höhlen]{\emph{Diverse in der Natur vorkommende Höhlen}: v.l.n.r \& v.o.n.u. \\
+	(a) Gletscherhöhle \cite{W_HoehleGletscher}, (b) Lavahöhle \cite{W_HoehleLava}, (c) die Mammuthöhle im Dachstein \cite{W_HoehleMammut},
+	(d) Kreidehöhle in der Weißen Wüste \cite{W_HoehleWueste}, \\ (e) Grundriss der Crystal Cave in Wisconsin \cite{W_HoehleCrystalCaveGrundriss}}
+	\label{B_Hoehlenbsp}
+\end{figure} 
+
+
+\ \\
+\emph{Dungeons} bestehen meist aus einer oder mehreren Höhlen, 
+Räumen und Gängen zur Verbindung dieser Bestandteile.
+Die Räume und Gänge sind dabei zumeist, wie auch die Höhle, unterirdisch angelegt.
+Es müssen nicht alle dieser Bestandteile vorhanden sein.
+Es gibt auch Dungeons, die nur aus Räumen und Gängen bestehen,
+als auch solche, die nur ein Höhlensystem bilden.
+Diese Ausarbeitung beschäftigt sich mit der Generierung von Dungeons,
+die aus einer Höhle sowie mehreren Gängen und Räumen aufgebaut sind.
+Die generierten Höhlen besitzen keine direkte Verbindung zur Außenwelt,
+sind also geschlossen und nur durch Gänge betretbar.
+
+Dungeons finden in Spielen vielfach Verwendung,
+insbesondere in Rollenspielen mit Fantasyhintergrund.
+Sie werden von gefährlichen Monstern bevölkert,
+sind gespickt mit tödlichen Fallen
+und reich an wertvollen Schätzen.
+Einige Beispiele für Dungeons sind in Abbildung \ref{B_Dungeonbsp} aufgeführt.
+Dungeons können zu Fuß erkundet werden,
+aber auch fliegend und kletternd.
+
+\begin{figure}
+  \centering % trim: links unten rechts oben
+ 
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Dungeon_Uldaman}} 
+  \hfill
+  \subfloat{\includegraphics[width=7.4cm]{Bilder/Dungeon_Schwarzfelstiefen}}
+  \hfill \\
+  
+  \hfill
+  \subfloat{\includegraphics[height=5.0cm]{Bilder/Dungeon_XulJarak}} 
+  \hfill
+  \subfloat{\includegraphics[height=5.0cm]{Bilder/Dungeon_BlackViper}}
+  \hfill 
+  \hfill\\
+  
+  \hfill
+  \subfloat{\includegraphics[height=7.5cm]{Bilder/Dungeon_Durimek}} 
+  \hfill
+  \subfloat{\includegraphics[height=7.5cm]{Bilder/Dungeon_Mega}}
+  \hfill
+  \hfill
+  
+  
+	\caption[Diverse Dungeons]{\emph{Diverse Dungeons}: v.l.n.r \& v.o.n.u. \\
+	(a)+(b) aus dem Computerspiel World of Warcraft \cite{W_WorldOfWarcraft}, \\
+	(c)\cite[S.22]{B_DnDGruumsch}+(d)\cite[S.169]{B_DnDSerp}+(e)\cite[S.3]{B_DnDRaiders} aus dem Pen-and-Paper-Rollenspiel Dungeons \& Dragons, \\
+	(f) Beispiel eines Megadungeons \cite{W_FantasticWorlds}	
+	}
+	\label{B_Dungeonbsp}
+	
+\end{figure} 
+
+
+
+% Gletscher1:
+% https://naturfotografen-forum.de/o247753-Blick+aus+einer+Gletscherh%C3%B6hle
+% https://naturfotografen-forum.de/data/media/19/IMG_2301080825%20b::Dr.Karl-Heinz_Limmer_hoehle_gletscher.jpg
+
+% Wüste1:
+% https://naturfotografen-forum.de/o43935-My+Cave
+% https://naturfotografen-forum.de/data/media/24/eg_bcave_::Dionys_Moser_wueste.jpg
+
+% Lava1:
+% https://naturfotografen-forum.de/o520782-Red+stone+cave
+% https://naturfotografen-forum.de/data/o/104/520782/image::Philip_Klinger_lavahoehle_lava_langzeitbelichtung_island_hoehle.jpg
+
+% Hoehle_Mammut:
+% http://www.foto360.at/vr_panorama_fotos_dyn/fullscreen/vollbild_qtvr_panorama_photo.php?id=616
+
+% Crystal Cave Map:
+% http://www.uwec.edu/jolhm/Cave2007/TeamC/TeamC/CrystalCave/Crystal%20Cave%20Map.jpg
+
+% Grand Canyon Caverns :
+% http://www.flickr.com/photos/lauri_vain/5025847717/in/photostream/
+
+% Hoehle_Lava2:  http://www.planet-wissen.de/natur_technik/hoehlen/hoehlenforschung/wie_hoehlen_entstehen.jsp
+
+% Hoehle_Gletscher2: http://www.fotocommunity.de/pc/pc/display/19475695
+
+% Wüste2:
+% http://www.fotocommunity.de/pc/pc/display/5288904
+
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+%Dungeon aus World of Warcraft: Uldaman
+%http://wow.4fansites.de/dungeons_uldaman.php
+
+%Dungeon aus World of Warcraft: Teil der Schwarzfelstiefen
+%http://wow.4fansites.de/dungeons_schwarzfelstiefen.php
+
+% Dungeons and Dragons:
+% Black Viper Altar, Serpent Kingdoms.pdf, S.169 ***
+% The Well of Darkness, Silver Marches.pdf, S.153
+% Xûl-Jarak, Ebene 4, Sons Of Gruumsch.pdf S.22 ***
+% Bau eines Bronzedrachens, Draconomicon.pdf S.221
+% Durimek, Races of Stone.pdf, Dungeons & Dragons: Raiders of the High Citadel - Web Enhancement for Races of Stone S.3 ***
+% The Devil's Cellar, Ghostwalk.pdf S.199 **
+
+% Megadungeon
+% http://cimorra.blogspot.de/2010/12/philosophie-megadungeons.html
+
+%=========================================================================
+%=========================================================================
+
+\section{Prozedurale Generierung}
+
+Unter \emph{prozeduraler Generierung}, auch als \emph{prozedurale Synthese} bezeichnet,
+versteht man die automatische Generierung von Daten nach einer festgelegten Generierungsprozedur.
+Die Daten werden also in ihrer endgültigen Form nicht manuell erzeugt,
+sondern unter Vorgabe entsprechender Parameter mittels eines Algorithmus.
+Solche Daten sind oft medialer Natur, beispielsweise Texturen, Geometrien oder Klänge.
+%Charakteristisch ist eine größere Menge von Ausgabedaten als Eingabedaten
+Der Prozess ist meist deterministisch, allerdings können auch Zufallsparameter einbezogen werden.
+
+%Professionale Anwendung findet solche beispielsweise in den Landschaftsgeneratoren "`World Machine"' \cite{W_WorldMachine}
+%und "`Terragen"' \cite{W_Terragen}, wobei letzterer in vielen Hollywood-Filmproduktionen engesetzt wird.
+
+%- zwei Möglichkeiten: in Echtzeit (dynamisch) oder vorberechnet (in externem Programm oder intern)
+%%- grundlegende prozedurale Techniken
+%Definition von \cite{W_PCGW_Main} ?
+%
+%Beispiel:
+
+%=========================================================================
+
+\subsection{Prozedurale Inhalte in Computerspielen}
+
+%alternativ:
+%\subsection{Unterteilung: Echtzeit oder vorberechnet}
+%\subsection{Prozedurale Dungeons}
+
+Prozedurale Inhalte sind in Computerspielen weit verbreitet.
+Es gibt zwei grundlegende Möglichkeiten zur Anwendung:
+die Daten werden bei Bedarf in Echtzeit berechnet oder sie sind vorberechnet.
+Die Vorberechnung kann in einem externen Generatorprogramm geschehen
+oder intern im Spiel selbst, z.B. beim Start des Programms.
+
+Durch prozedurale Generierung kann Speicherplatz eingespart werden,
+da die Generierungsparameter i.A. deutlich weniger Speicher benötigen als
+die generierten Daten.
+Weiterhin ist eine hohe Vielfalt bezüglich dieser Daten erzielbar,
+die bei manueller Erstellung nicht möglich wäre.
+
+%
+%Unterscheidung:
+%- Prozedurale Inhalte in Echtzeit:
+%  - besonders wichtig bei sehr großen Welten oder starken Speicherplatzeinschränkungen\\
+%  - dynamische on-the-fly Berechnung der Inhalte, da nicht alles in Speicher passen würde\\
+%  - Berechnungsverfahren i.d.R. deterministisch, also immer gleiche Resultate
+%- Vorberechnete Prozedurale Inhalte
+
+%\subsubsection{Elite}
+%
+%Elite \cite{W_ElitePage} ist eine von 1984 stammende Weltraumsimulation.
+%Die Spielwelt besteht aus 8 Galaxien mit je 256 Planeten, die viele spezifische Eigenschaften wie Handelsgüter oder Regierungsformen besitzen.
+%Das Spiel ist lauffähig auf 8-Bit-Rechnern mit sehr begrenztem Speicherplatz.
+%Die Daten werden prozedural bei Bedarf berechnet.
+%
+%Als Methode zur Generierung werden laut \cite{A_EliteGen} und \cite{W_EliteGen}
+%%- Vorgabe eines Randomseeds -> fest Eingestellt damit Universum überall identisch\\
+%Pseudozufallszahlen mittels einer generalisierten Fibonacci-Sequenz erzeugt.
+%Durch numerische Beschränkungen werden die Zahlen modulo 65536 genommen, welches einer generalisierten Pisano-Sequenz entspricht.
+%Unterschiedlich interpretiert ergeben diese Zufallszahlen Sternensysteme, Planetennamen, Handelsgüter, Alienrassen und weitere Daten.
+
+\subsubsection{Minecraft}
+
+Minecraft \cite{W_MinecraftPage} ist eine Adventure- und Aufbausimulation.
+Das Gelände ist dreidimensional aus Blöcken aufgebaut.
+Jeder Block besteht aus einem bestimmtem Material wie Fels, Erde, Sand, Wasser oder Luft.
+Das Gelände wird on-the-fly prozedural generiert, die theoretische Spielweltgröße ist riesig.
+Es wird immer nur das Gelände in der Nähe der Spielfigur erzeugt.
+Bei Änderungen am Gelände, beispielsweise durch Aktionen des Spielers, werden diese Änderungen gespeichert.
+
+Der Basisansatz des Generierungsverfahrens gestaltet sich nach \cite{W_MinecraftGen} folgendermaßen:
+Mittels eines 3D-Perlin-Noise wird die Dichte jedes Blocks bestimmt,
+wobei zusätzlich die Höhe des Wasserpegels einbezogen wird.
+Ist die Dichte kleiner null, handelt es sich bei dem Block um Luft,
+ist sie größer oder gleich null, handelt es sich um festes Material.
+
+\subsubsection{.kkrieger}
+
+.kkrieger ist ein 3D-Ego-Shooter von der Codergruppe Farbrausch/.theprodukkt \cite{W_Farbrausch}.
+Die Besonderheit ist, dass das Programm inklusive aller Daten nur 96 KiB groß ist.
+Die benötigte Daten werden direkt nach Programmstart prozedural generiert.
+Dazu gehören die 3D-Modelle, Texturen, Musik, Soundeffekte und der Aufbau der Spielwelt selbst.
+
+Die Generierung funktioniert nach dem Prinzip modularer Synthesizer \cite{W_kkriegerPostmortem}.
+Hierbei sind einzelne Generierungsbausteine, wie Perlin Noise oder Bump Mapping,
+über einen kreisfreien Graphen miteinander verknüpft.
+Die Ausgabe eines Generatorbausteins ist dabei die Eingabe des nächsten.
+Gespeichert werden nur diese Operatoren und ihre Verschaltungen.
+Das Spiel kann mit diesen Informationen alle Daten prozedural generieren.
+
+%=========================================================================
+\subsection{Roguelikes und prozedurale Dungeons}
+
+Roguelikes \cite{W_RoguelikeDefWiki} sind Computerrollenspiele, die auf dem Spielprinzip des Spiels "`Rogue"' basieren.
+Hierzu gehört vor allem eine zufällig generierte Spielwelt, primär aufgebaut aus zweidimensionalen Dungeons,
+und das Hindurchkämpfen durch die diese Dungeons bewohnenden Monsterhorden.
+Die 2D-Dungeons in Roguelikes bestehen aus einzelnen Feldern, die in einem quadratischen Gitter angeordnet sind.
+Diese Felder sind als bestimmte Typen charakterisiert, beispielsweise als Räume, Gänge oder Wände.
+
+\ \\
+Viele Computerrollenspiele basieren heute noch auf diesem Prinzip.
+Beispiele hierfür sind Diablo II und Diablo III,
+für die Screenshots in Abbildung \ref{B_ShotsDiablo} gezeigt sind.
+Es gibt eine Vielzahl verschiedener Verfahren, um solche Dungeons zu erstellen.
+
+\begin{figure}[htbp]
+  \centering  
+  \hfill
+  \subfloat{\includegraphics[height=4.75cm]{Bilder/Spielscreenshot_Diablo2_heller}}
+  \hfill
+  \subfloat{\includegraphics[height=4.75cm]{Bilder/Spielscreenshot_Diablo3_heller}}  
+  \hfill
+	\caption[Bilder von Roguelikes]{\emph{Bilder von Roguelikes}: v.l.n.r. Screenshot von (a) Diablo II \cite{W_Diablo2}, (b) Diablo III \cite{W_Diablo3}}
+	\label{B_ShotsDiablo}
+\end{figure}
+
+%\ \\
+\noindent Der folgende Algorithmus für die Generierung eines Dungeons zur Verwendung in Roguelikes
+wird in \cite{W_RoguelikeGen} beschrieben: \\
+
+\begin{compactenum}
+	\item Die Karte besteht aus quadratischen Feldern, initial alles Wände bzw. Felsen, also unpassierbares Gelände.
+	\item Teile die Karte durch ein Gitternetz auf, jedes Gitterstück beinhaltet einen Raum.
+	\item Ordne jedem Raum zu: Flag "`verbunden"' (initial sind alle Räume nicht-verbunden), Array zum Speichern von Verbindungen zu Nachbarräumen.
+	
+	\item Bestimme einen zufälligen Raum, markiere diesen als "`verbunden"' und mache ihn zum aktuellen Raum.
+	\item Solange es nicht-verbundene Nachbarräume gibt:
+		\begin{compactitem}
+			\item	Stelle eine Verbindung zu einem Nachbarraum her.
+			\item Markiere diesen als "`verbunden"' und mache ihn zum aktuellen Raum.
+		\end{compactitem}		
+	\item Solange es nicht-verbundene Räume gibt:
+		\begin{compactitem}
+			\item	Wähle einen nicht-verbundenen Raum.
+			\item	Versuche zu einem zufälligen Nachbar zu verbinden, der schon "`verbunden"' ist.
+			\item	In diesen Fall markiere den aktuellen Raum als "`verbunden"', ansonsten wähle nächsten nicht-verbunden Raum aus.
+		\end{compactitem}		
+	\item Alle Räume sind nun verbunden.
+	\item Füge weitere, zufällige Verbindungen zwischen benachbarten Räumen hinzu.
+	
+	\item Felder setzen: Freiräume
+		\begin{compactitem}
+			\item	Zeichne Räume auf der Karte ein.
+			\item	Zeichne Korridore zwischen miteinander verbundenen benachbarten Räumen.
+		\end{compactitem}	
+	\item Felder setzen: Türen
+		\begin{compactitem}
+			\item	Suche nach Feldern mit 2 angrenzenden Wandfeldern, 1-2 angrenzenden Raumfeldern und 0-1 angrenzenden Korridorfeldern.
+			\item	Wandle diese in Türen um.
+		\end{compactitem}	
+	\item Felder setzen: Treppen
+		\begin{compactitem}
+			\item	Setze Treppe nach oben im ersten als "`verbunden"' markierten Raum.
+			\item	Setze Treppe nach unten im letzten als "`verbunden"' markierten Raum.
+		\end{compactitem}	
+		Durch die gewählte Methode des Treppensetzens wird i.d.R. ein langer Laufweg erzielt, der durch viele Räume hindurchführt.
+\end{compactenum}
+
+\subsubsection{Höhlen per zellulärem Automat}
+
+In \cite{W_DungCellGen} wird eine Methode für die Generierung von 2D-Höhlen beschrieben.
+Das Spielfeld besteht aus einzelnen quadratischen Feldern.
+Die Methode basiert auf zellulären Automaten: \\
+
+\begin{compactenum}
+	\item Erstelle initiale Karte durch zufälliges Setzen der Felder nach folgender Verteilung:
+		\begin{compactitem}
+			\item 60\% der Felder sind Gestein.
+			\item 40\% der Felder sind Freiraum.
+		\end{compactitem}	 
+	\item Wende die 4-5 Regel für zelluläre Automaten auf jedes Feld der Karte an (eventuell mehrfache Durchläufe):
+		\begin{compactitem}
+			\item Bei weniger als 4 angrenzenden Felsfeldern (in 8er Nachbarschaft): Feld wird zu Freiraum.
+			\item Bei mehr als 5 angrenzenden Felsfeldern: Feld wird zu Fels.
+			\item Ansonsten: Feld bleibt so belassen.
+		\end{compactitem} 	 
+	\item Verbinde die einzelnen Kavernen zu einer Gesamthöhle:
+		\begin{compactitem}
+			\item Bestimme die einzelnen Kavernen.
+			\item Zeichne von einem Freiraumfeld jeder Kaverne eine mäandrische Linie von Freiraumfeldern in Richtung Mitte, bis eine andere Kaverne getroffen wird.
+		\end{compactitem} 
+\end{compactenum}
+
+\subsubsection{DungeonMaker}
+
+Der DungeonMaker \cite{W_DungMakMan} ist eigenständiger Dungeongenerator zum Erstellen gitterbasierten 2D-Dungeons.
+Er ist beispielsweise für Pen-and-Paper-Rollenspiele oder zur Einbindung in Computerspiele nutzbar.
+
+Der Generierungsprozess verwendet Mechaniken von virtuellem Leben, um Dungeons zu erstellen.
+Zuerst platziert der Nutzer einige Designelemente auf der Karte, z.B. Räume und Mauern.
+Nun generiert der DungeonMaker um diese vorplatzierten Elemente den Dungeon.
+Dies geschieht mit den Buildern, kleinen Agenten, die mittels KI gesteuert werden.
+Subklassen der Builder sind WallCrawler (bauen Wände), Tunneler (heben Tunnel aus) und Roomies (bauen Räume).
+
+Ein Vorschlag für das Aufbrechen der zugrundeliegenden achsenparallelen Gitterstruktur ist in \cite{W_DungMakSug} aufgeführt:
+Die entstehende Karte wird in 3D gerendert und dabei verzerrt.
+
+
+%\subsubsection{Dwarf Fortress}
+%- Dwarf Fortress \cite{W_Dwarffortress} simuliert komplette Fantasywelt \\
+%- extrem hohe Komplexität der Welt \\
+%- Welt wird prozedural generiert: Hintergrundgeschichte , Geographie, Städte, Höhlen, Tierwelt \\
+
+% http://www.mxac.com.au/drt/OblivionProcedural.htm
+% http://properundead.com/2009/03/cave-generator.html
+
+%=========================================================================
+%\subsection{Prozedurale Landschaften}
+%Lanschaftsgeneratoren:
+%z.B. World Machine -> kann auch für vorberechnete Inhalte in Computerspielen verwendet werden (QUELLE: siehe Making Games Magazin 06/2011, Seite 10)
+%Terragen
+%
+%
+%%\section{Grundlegende Prozedurale Techniken}
+%%- CG2-Übung
+

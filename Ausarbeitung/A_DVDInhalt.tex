@@ -1,0 +1,97 @@
+\chapter{CD-Inhalt}
+\label{A_DVD}
+
+Inhalt des beiliegenden Datenträgers: % !!!mit Dateinamen und Verzeichnissen
+
+\begin{itemize}
+	\item Ausarbeitung als digitale Version: \\
+				Datei "`\textbackslash MaxHoenig\_Masterarbeit.pdf"'
+	\item Anleitung für das beiliegende Programm: \\
+				Datei "`\textbackslash Anleitung\_Dungeongenerator.pdf"'
+	\item Anleitung zum Kompilieren des Programms: \\
+				Datei "`\textbackslash Anleitung\_Kompilierung.pdf"'
+	\item Übersicht über die Namenskonventionen, die innerhalb des Programms verwendet wurden: \\
+				Datei "`\textbackslash Namenskonventionen.pdf"'
+	\item Programmcode in C++ als Projekt für Microsoft Visual Studio 2010 mit Service Pack 1: \\
+				Ordner "`\textbackslash Programmcode\textbackslash"'
+	\item Für Windows x86 kompiliertes Programm (benötigt OpenGL): \\
+				Ordner "`\textbackslash Dungeongenerator\textbackslash"'
+	\item Irrlicht, Version 1.7.3 (verwendete Version) \cite{W_Irrlicht}:\\
+				Ordner "`\textbackslash Extern\textbackslash irrlicht-1.7.3\textbackslash"'
+	\item Szeneneditor IrrEdit (ermöglicht die  Erstellung von .irr-Szenen), Version 1.5 \cite{W_IrrEdit}:\footnote{Bugs in Irredit 1.5:
+1.) Das Einlesen von Meshes, die Meshbuffer mit mehr als $\sim$ 32k Vertices erzeugen, resultiert in inkorrekten Meshes.
+Vermutete Ursache: Verwendung von \emph{signed short} statt \emph{unsigned short} als Datentyp für die Vertex-Indices.
+%Außerdem wird nur der erste Meshbuffer dargestellt.
+%Im 3D-Modelling-Programm 3ds Max 2010 funktioniert das Einlesen problemlos.
+2.) Das Ändern von Materialeigenschaften kann die Texturkoordinaten eines Objekts auf falsche Werte setzen.
+}\\
+				Ordner "`\textbackslash Extern\textbackslash irrEdit-1.5\textbackslash"'
+	\item Modellings der für die Subszenen verwendeten Basisgeometrien, Andockgeometrien, Verschlussgeometrien
+				und Andockstellen als Autodesk 3DS Max 2010 .max-Dateien: \\
+				Ordner "`\textbackslash Modellings\textbackslash"'
+\end{itemize}
+
+
+\subsubsection{Beispieldateien}
+
+Beispieldateien für Höhlen, Dungeons und Höhlenfarben befinden als XML-Dateien sich im Verzeichnis 
+"`\textbackslash Dungeongenerator\textbackslash"'.
+
+\ \\
+Beispiele für höhlenartige L-Systeme und bekannte L-Systeme:
+\begin{compactitem}
+	\item Abbildung \ref{B_LSys_Hoehlenbasis}: "`LSystem\_Hoehle\_Flach1.xml"'
+	\item Abbildung \ref{B_BspDungeons} unten: "`LSystem\_Hoehle\_Flach2.xml"'
+	\item Abbildung \ref{B_BspDungeons} oben: "`LSystem\_Hoehle\_Tief1.xml"'
+	\item viele der Abbildungen, die eine Höhle von innen zeigen: "`LSystem\_Baum.xml"' \cite[S.25]{B_LindSys}
+	(stellt von außen betrachtet eine Baumstruktur dar, eignet sich aber von innen betrachtet auch als Höhle)	
+	\item Drachenkurve: "`LSystem\_Drachenkurve.xml"' \cite[S.11]{B_LindSys}
+	\item Waben: "`LSystem\_Waben.xml"' \cite{W_LSys_HexaKolam} %http://jsxgraph.uni-bayreuth.de/wiki/index.php/Hexagonal_kolam
+	\item Koch-Kurve: "`LSystem\_Koch-Kurve.xml"'
+	\item Kochsche Schneeflocke: "`LSystem\_Kochsche-Schneeflocke.xml"'
+\end{compactitem}
+
+%\ \\
+%Parameter zur Erstellung von höhlenartigen, zufälligen L-Systemen:
+%-> als Voreinstellung
+%in Anleitung und dieser Arbeit andere Symbole erwähnt
+
+\ \\
+Beispiele für Dungeons:
+\begin{compactitem}
+	\item Abbildung \ref{B_DungeonBsp1}: Datei "`Dungeon\_Aufsteigend.xml"'
+	\item Abbildung \ref{B_DungeonBsp2}: Datei "`Dungeon\_Ring.xml"'
+	\item Abbildung \ref{B_DungeonBsp3}: Datei "`Dungeon\_Tief.xml"'
+	\item Abbildung \ref{B_DungeonBsp4}: Datei "`Dungeon\_Weit.xml"'
+	\item Abbildung \ref{B_DungeonBsp5}: Datei "`Dungeon\_Doppelkugel.xml"'
+	\item Dungeon aus Abbildung \ref{B_BspDungeons} oben, etwas modifiziert: "`Dungeon\_Verdreht.xml"'
+	\item Abbildung \ref{B_DungeonInnenBsp2}(b): "`Dungeon\_Bizarr.xml"'
+\end{compactitem}
+
+\ \\
+Farben für Höhlen:
+\begin{compactitem}
+	\item Bernstein : "`Farbe\_Bernstein.xml"'
+	\item Eis : "`Farbe\_Eis.xml"'
+	\item Rubin : "`Farbe\_Rubin.xml"'
+	\item Smaragd : "`Farbe\_Smaragd.xml"'
+	\item Amethyst : "`Farbe\_Amethyst.xml"'
+\end{compactitem}
+
+%\ \\
+%Die Einstellungen der Datei "`Einstellungen\_Standard.xml"' werden bei Programmstart automatisch geladen.
+
+
+%Gute Generierungsvorgaben für L-System-Höhlen
+%------
+%
+%- L-Systeme inkl. Parametern
+% - bekannte L-Systeme
+% - für Höhlen aus K3, 8
+% 
+%- Dungeons aus Anhang 2
+%
+%- Materialien
+%
+%- Generierungsparamerter für höhlenartige L-Systeme
+ 
