@@ -2,4 +2,4 @@ This is my master thesis: "Procedural game world generation: Dungeons".
 
 The language used is German.
 
-The master thesis was awarded with the best possible grade.
+The master thesis was awarded with the best possible grade (1.0).
