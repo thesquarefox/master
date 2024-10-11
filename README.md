@@ -1,4 +1,6 @@
-This is my master thesis: "Procedural game world generation: Dungeons".
+This is my master thesis for my computer science studies.
+
+It has the topic: "Procedural game world generation: Dungeons".
 
 The language used is German.
 
